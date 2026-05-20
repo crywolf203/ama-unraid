@@ -292,6 +292,17 @@ Configuration () {
 	sleep 2.5
 }
 
+
+DownloadAlbumWithClient () {
+	_album_url="$1"
+
+	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
+		bash /config/scripts/deemix_api_download.bash "$_album_url"
+	else
+		DownloadAlbumWithClient "$deezeralbumurl"
+	fi
+}
+
 AddReplaygainTags () {
 	if [ "$REPLAYGAIN" == "true" ]; then
 		log "$logheader :: Adding Replaygain Tags using r128gain to files"
@@ -758,7 +769,7 @@ ProcessArtist () {
 		if [ "" = "deemix_api" ]; then
 			bash /config/scripts/deemix_api_download.bash ""
 		else
-			python3 /config/scripts/dlclient.py -b  ""
+			DownloadAlbumWithClient "$deezeralbumurl"
 		fi
 		rm -rf /tmp/deemix-imgs/*
 		if find /downloads-ama/temp -iregex ".*/.*\.\(flac\|mp3\)" | read; then
@@ -833,7 +844,7 @@ ProcessArtist () {
 		fi
 		
 		# remove plex ignore file temporarily
-		rm /downloads-ama/temp/.plexignore
+		rm -f /downloads-ama/temp/.plexignore
 		
 		mv /downloads-ama/temp/* "$artistfolder/$albumfolder"/
 		chmod $FILEPERM "$artistfolder/$albumfolder"/*
@@ -1472,6 +1483,11 @@ MP3Convert () {
 }
 
 Conversion () {
+	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ] && [ "${FORCECONVERT:-false}" != "true" ]; then
+		log "$logheader :: CONVERSION :: SKIPPED :: Deemix API already provided downloaded files"
+		return
+	fi
+
 	if [ "${FORMAT}" != "FLAC" ]; then
 		if [ $FORCECONVERT == true ]; then
 			converttrackcount=$(find /downloads-ama/temp/ -iregex ".*/.*\.\(flac\|mp3\)" | wc -l)
