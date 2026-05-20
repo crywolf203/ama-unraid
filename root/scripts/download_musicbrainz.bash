@@ -53,6 +53,10 @@ Configuration () {
 		MODE="artist"
 	fi
 
+	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
+		log "AMA: Download Client: Deemix API"
+		log "AMA: ARL_TOKEN: SKIPPED (using Deemix API login.json)"
+	else
 	if [ ! -z "$ARL_TOKEN" ]; then
 		log "$TITLESHORT: ARL Token: Configured"
 		if [ -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
@@ -64,6 +68,7 @@ Configuration () {
 	else
 		log "ERROR: ARL_TOKEN setting invalid, currently set to: $ARL_TOKEN"
 		error=1
+	fi
 	fi
 	
 	if [ ! -z "$ALBUM_TYPE_FILTER" ]; then
