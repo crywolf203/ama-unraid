@@ -1,0 +1,15 @@
+#!/usr/bin/with-contenv bash
+
+cat <<'BANNER'
+
+╔════════════════════════════════════════════════════╗
+╠════════════════════════════════════════════════════╣
+║                                                    ║
+║              AMA-Unraid maintained fork            ║
+║          Community maintained by crywolf203        ║
+║        Pinned to verified AMA dependencies         ║
+║                                                    ║
+╠════════════════════════════════════════════════════╣
+╚════════════════════════════════════════════════════╝
+
+BANNER
