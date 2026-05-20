@@ -630,7 +630,11 @@ ProcessArtist () {
 		# add plex ignore file temporarily
 		touch /downloads-ama/temp/.plexignore
 		
-		python3 /config/scripts/dlclient.py -b $quality "$deezeralbumurl"
+		if [ "" = "deemix_api" ]; then
+			bash /config/scripts/deemix_api_download.bash ""
+		else
+			python3 /config/scripts/dlclient.py -b  ""
+		fi
 		rm -rf /tmp/deemix-imgs/*
 		if find /downloads-ama/temp -iregex ".*/.*\.\(flac\|mp3\)" | read; then
 			DownloadQualityCheck
