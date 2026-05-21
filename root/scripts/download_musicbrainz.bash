@@ -10,6 +10,7 @@ PlexScanPath () {
 	fi
 
 	_plex_root="${_plex_root%/}"
+	_plex_encoded="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$_plex_root")"
 
 	case "$_ama_path" in
 		/downloads-ama)
@@ -18,11 +19,24 @@ PlexScanPath () {
 		/downloads-ama/*)
 			printf '%s/%s\n' "$_plex_root" "${_ama_path#/downloads-ama/}"
 			;;
+		%2Fdownloads-ama)
+			printf '%s\n' "$_plex_encoded"
+			;;
+		%2Fdownloads-ama%2F*)
+			printf '%s%s\n' "$_plex_encoded" "${_ama_path#%2Fdownloads-ama}"
+			;;
+		%2fdownloads-ama)
+			printf '%s\n' "$_plex_encoded"
+			;;
+		%2fdownloads-ama%2f*)
+			printf '%s%s\n' "$_plex_encoded" "${_ama_path#%2fdownloads-ama}"
+			;;
 		*)
 			printf '%s\n' "$_ama_path"
 			;;
 	esac
 }
+
 
 export XDG_CONFIG_HOME="/config/deemix/xdg"
 export LC_ALL=C.UTF-8
