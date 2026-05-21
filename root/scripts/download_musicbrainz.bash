@@ -1,4 +1,29 @@
 #!/usr/bin/with-contenv bash
+
+PlexScanPath () {
+	_ama_path="$1"
+	_plex_root="${PLEXSCANPATH:-}"
+
+	if [ -z "$_plex_root" ]; then
+		printf '%s\n' "$_ama_path"
+		return
+	fi
+
+	_plex_root="${_plex_root%/}"
+
+	case "$_ama_path" in
+		/downloads-ama)
+			printf '%s\n' "$_plex_root"
+			;;
+		/downloads-ama/*)
+			printf '%s/%s\n' "$_plex_root" "${_ama_path#/downloads-ama/}"
+			;;
+		*)
+			printf '%s\n' "$_ama_path"
+			;;
+	esac
+}
+
 export XDG_CONFIG_HOME="/config/deemix/xdg"
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
@@ -268,6 +293,11 @@ Configuration () {
 
 	if [ "$NOTIFYPLEX" == "true" ]; then
 		log "$TITLESHORT: Plex Library Notification: ENABLED"
+		if [ ! -z "${PLEXSCANPATH:-}" ]; then
+			log "$TITLESHORT: Plex Scan Path Override: $PLEXSCANPATH"
+		else
+			log "$TITLESHORT: Plex Scan Path Override: DISABLED"
+		fi
 		plexlibraries="$(curl -s "$PLEXURL/library/sections?X-Plex-Token=$PLEXTOKEN" | xq .)"
 		if echo "$plexlibraries" | grep "/downloads-ama" | read; then
 			plexlibrarykey="$(echo "$plexlibraries" | jq -r ".MediaContainer.Directory[] | select(.\"@title\"==\"$PLEXLIBRARYNAME\") | .\"@key\"" | head -n 1)"
@@ -1580,8 +1610,9 @@ PlexNotification () {
 	if [ "$NOTIFYPLEX" == "true" ]; then
 		plexfolder="$1"
 		plexfolderencoded="$(jq -R -r @uri <<<"${plexfolder}")"
-		curl -s "$PLEXURL/library/sections/$plexlibrarykey/refresh?path=$plexfolderencoded&X-Plex-Token=$PLEXTOKEN"
-		log "$logheader :: Plex Scan notification sent! ($plexfolder)"
+		plexscanpath="$(PlexScanPath "$plexfolderencoded")"
+		curl -s "$PLEXURL/library/sections/$plexlibrarykey/refresh?path=${plexscanpath}&X-Plex-Token=$PLEXTOKEN"
+		log "$logheader :: Plex Scan notification sent! (${plexscanpath})"
 	fi
 }
 
