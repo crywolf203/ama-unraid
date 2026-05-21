@@ -5,37 +5,39 @@ PlexScanPath () {
 	_plex_root="${PLEXSCANPATH:-}"
 
 	if [ -z "$_plex_root" ]; then
-		printf '%s\n' "$_ama_path"
+		printf "%s\n" "$_ama_path"
 		return
 	fi
 
 	_plex_root="${_plex_root%/}"
-	_plex_encoded="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$_plex_root")"
+	_plex_encoded="$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=\"\"))" "$_plex_root")"
 
 	case "$_ama_path" in
 		/downloads-ama)
-			printf '%s\n' "$_plex_root"
+			printf "%s\n" "$_plex_root"
 			;;
 		/downloads-ama/*)
-			printf '%s/%s\n' "$_plex_root" "${_ama_path#/downloads-ama/}"
+			printf "%s/%s\n" "$_plex_root" "${_ama_path#/downloads-ama/}"
 			;;
 		%2Fdownloads-ama)
-			printf '%s\n' "$_plex_encoded"
+			printf "%s\n" "$_plex_encoded"
 			;;
 		%2Fdownloads-ama%2F*)
-			printf '%s%s\n' "$_plex_encoded" "${_ama_path#%2Fdownloads-ama}"
+			printf "%s%s\n" "$_plex_encoded" "${_ama_path#%2Fdownloads-ama}"
 			;;
 		%2fdownloads-ama)
-			printf '%s\n' "$_plex_encoded"
+			printf "%s\n" "$_plex_encoded"
 			;;
 		%2fdownloads-ama%2f*)
-			printf '%s%s\n' "$_plex_encoded" "${_ama_path#%2fdownloads-ama}"
+			printf "%s%s\n" "$_plex_encoded" "${_ama_path#%2fdownloads-ama}"
 			;;
 		*)
-			printf '%s\n' "$_ama_path"
+			printf "%s\n" "$_ama_path"
 			;;
 	esac
 }
+
+
 
 
 export XDG_CONFIG_HOME="/config/deemix/xdg"
@@ -714,6 +716,10 @@ ProcessArtist () {
 			artwork="$(dirname "$file")/folder.jpg"
 			if ffmpeg -y -i "$file" -c:v copy "$artwork" 2>/dev/null; then
 				log "$logheader :: Artwork Extracted"
+
+					if [ -f "/config/scripts/tag_normalizer.py" ]; then
+						python3 /config/scripts/tag_normalizer.py /downloads-ama/temp
+					fi
 			else
 				log "$logheader :: ERROR :: No artwork found"
 			fi
