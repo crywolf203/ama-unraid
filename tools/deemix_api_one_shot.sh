@@ -110,6 +110,7 @@ ALBUM_DIR=""
 LAST_SIG=""
 STABLE_COUNT=0
 
+echo "DEEMIX_API :: Max polls: $MAX_POLLS"
 for i in $(seq 1 "$MAX_POLLS"); do
   ALBUM_DIR="$(find "$DEEMIX_DOWNLOAD_PATH" -type d -name "*(${ALBUM_ID})" -print -quit 2>/dev/null || true)"
 
