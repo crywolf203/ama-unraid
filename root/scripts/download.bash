@@ -1,4 +1,18 @@
 #!/usr/bin/with-contenv bash
+RunArtistTagCleanup () {
+	_tag_folder="${1:-/downloads-ama/temp}"
+
+	if [ "${ENABLE_ARTIST_TAG_CLEANUP:-true}" != "true" ]; then
+		return
+	fi
+
+	if [ -f "/config/scripts/artist_tag_cleanup.py" ]; then
+		python3 /config/scripts/artist_tag_cleanup.py "$_tag_folder"
+	elif [ -f "/scripts/artist_tag_cleanup.py" ]; then
+		python3 /scripts/artist_tag_cleanup.py "$_tag_folder"
+	fi
+}
+
 RunTagNormalizer () {
 	_tag_folder="${1:-/downloads-ama/temp}"
 
@@ -730,6 +744,7 @@ ProcessArtist () {
 			artwork="$(dirname "$file")/folder.jpg"
 			if ffmpeg -y -i "$file" -c:v copy "$artwork" 2>/dev/null; then
 				log "$logheader :: Artwork Extracted"
+					RunArtistTagCleanup /downloads-ama/temp
 
 					RunTagNormalizer /downloads-ama/temp
 			else
