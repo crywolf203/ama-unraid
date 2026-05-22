@@ -839,6 +839,8 @@ ProcessArtist () {
 
 					if [ -f "/config/scripts/tag_normalizer.py" ]; then
 						python3 /config/scripts/tag_normalizer.py /downloads-ama/temp
+					elif [ -f "/scripts/tag_normalizer.py" ]; then
+						python3 /scripts/tag_normalizer.py /downloads-ama/temp
 					fi
 			else
 				log "$logheader :: ERROR :: No artwork found"

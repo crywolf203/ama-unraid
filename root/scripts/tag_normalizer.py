@@ -64,21 +64,47 @@ def dedupe_feat_title(title: str) -> str:
 def title_has_artist(title: str, artist: str) -> bool:
     return artist.lower() in title.lower()
 
+def merge_feat_artists(title: str, extra_artists):
+    title = clean_spaces(title)
+    existing = []
+
+    def remove_feat(match):
+        inside = match.group(1)
+        for item in split_artists(inside):
+            if item.lower() not in [x.lower() for x in existing]:
+                existing.append(item)
+        return ""
+
+    base = re.sub(r"\s*\((?:feat\.|ft\.|with)\s+([^)]+)\)", remove_feat, title, flags=re.I)
+    base = clean_spaces(base)
+
+    merged = []
+    for item in existing + list(extra_artists):
+        item = clean_spaces(item)
+        if item and item.lower() not in [x.lower() for x in merged]:
+            merged.append(item)
+
+    if merged:
+        return f"{base} (feat. {' & '.join(merged)})"
+    return base
+
+
 def normalize_file(path: Path):
     audio = FLAC(path)
 
     tags = {k.lower(): list(v) for k, v in audio.tags.items()} if audio.tags else {}
 
-    title = audio.get("TITLE", audio.get("title", [path.stem]))[0]
-    artist = audio.get("ARTIST", audio.get("artist", [""]))[0]
-    album_artist = (
-        audio.get("ALBUMARTIST")
-        or audio.get("albumartist")
-        or audio.get("ALBUM_ARTIST")
-        or audio.get("album_artist")
-        or audio.get("album_artist_sort")
-        or [""]
-    )[0]
+    title = (audio.get("TITLE") or audio.get("title") or [path.stem])[0]
+
+    artist_values = []
+    for key in ("ARTIST", "artist"):
+        artist_values.extend(audio.get(key, []))
+    artist = ";".join(str(x) for x in artist_values if str(x).strip())
+
+    album_artist_values = []
+    for key in ("ALBUMARTIST", "albumartist", "ALBUM_ARTIST", "album_artist", "album_artist_sort"):
+        album_artist_values.extend(audio.get(key, []))
+    album_artist = ";".join(str(x) for x in album_artist_values if str(x).strip())
 
     title = dedupe_feat_title(title)
     album_artist = clean_spaces(album_artist) or clean_spaces(artist)
@@ -89,11 +115,9 @@ def normalize_file(path: Path):
         if item.lower() != album_artist.lower() and item.lower() not in [x.lower() for x in extra_artists]:
             extra_artists.append(item)
 
-    # If featured artists are in ARTIST but not in TITLE, append them to TITLE.
-    missing_extras = [x for x in extra_artists if not title_has_artist(title, x)]
-    if missing_extras:
-        title = f"{title} (feat. {' & '.join(missing_extras)})"
-        title = dedupe_feat_title(title)
+    # Move all non-album artists into a single title feat group.
+    if extra_artists:
+        title = merge_feat_artists(title, extra_artists)
 
     # Remove unwanted tags.
     for key in list(audio.keys()):
