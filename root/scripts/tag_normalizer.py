@@ -106,9 +106,17 @@ def normalize_file(path: Path):
         album_artist_values.extend(audio.get(key, []))
     album_artist = ";".join(str(x) for x in album_artist_values if str(x).strip())
 
-    title = dedupe_feat_title(title)
-    album_artist = clean_spaces(album_artist) or clean_spaces(artist)
+    album_artist_candidates = split_artists(album_artist)
     artist_parts = split_artists(artist)
+
+    if album_artist_candidates:
+        album_artist = album_artist_candidates[0]
+    elif artist_parts:
+        album_artist = artist_parts[0]
+    else:
+        album_artist = clean_spaces(artist)
+
+    title = dedupe_feat_title(title)
 
     extra_artists = []
     for item in artist_parts:
