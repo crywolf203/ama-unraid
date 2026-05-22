@@ -1,4 +1,18 @@
 #!/usr/bin/with-contenv bash
+RunTagNormalizer () {
+	_tag_folder="${1:-/downloads-ama/temp}"
+
+	if [ "${ENABLE_TAG_NORMALIZER:-false}" != "true" ]; then
+		return
+	fi
+
+	if [ -f "/config/scripts/tag_normalizer.py" ]; then
+		python3 /config/scripts/tag_normalizer.py "$_tag_folder"
+	elif [ -f "/scripts/tag_normalizer.py" ]; then
+		python3 /scripts/tag_normalizer.py "$_tag_folder"
+	fi
+}
+
 
 PlexScanPath () {
 	_ama_path="$1"
@@ -55,7 +69,7 @@ Configuration () {
 	log ""
 	sleep 2
 	log "######################### $TITLE"
-	log "######################### SCRIPT VERSION 1.1.61"
+	log "######################### SCRIPT VERSION 2.0.0"
 	log "######################### DOCKER VERSION $VERSION"
 	log "######################### CONFIGURATION VERIFICATION"
 	error=0
@@ -717,11 +731,7 @@ ProcessArtist () {
 			if ffmpeg -y -i "$file" -c:v copy "$artwork" 2>/dev/null; then
 				log "$logheader :: Artwork Extracted"
 
-					if [ -f "/config/scripts/tag_normalizer.py" ]; then
-						python3 /config/scripts/tag_normalizer.py /downloads-ama/temp
-					elif [ -f "/scripts/tag_normalizer.py" ]; then
-						python3 /scripts/tag_normalizer.py /downloads-ama/temp
-					fi
+					RunTagNormalizer /downloads-ama/temp
 			else
 				log "$logheader :: ERROR :: No artwork found"
 			fi
