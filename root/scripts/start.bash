@@ -1,6 +1,11 @@
 #!/usr/bin/with-contenv bash
 
 echo "Starting Script...."
+# Clear stale Deemix API polling helpers from previous interrupted runs.
+pkill -9 -f "/config/scripts/deemix_api_download.bash" 2>/dev/null || true
+pkill -9 -f "/scripts/deemix_api_download.bash" 2>/dev/null || true
+pkill -9 -f "deemix_api_download.bash" 2>/dev/null || true
+
 processstartid="$(ps -A -o pid,cmd|grep "/config/scripts/start.bash" | grep -v grep | head -n 1 | awk '{print $1}')"
 echo "To kill script, use the following command:"
 echo "kill -9 $processstartid"
