@@ -1,19 +1,99 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/crywolf203/unraid-templates/main/ama-unraid-icon.png" alt="AMA-Unraid icon" width="128">
+</p>
+
+# AMA-Unraid
+
+Community-maintained Unraid-friendly Docker container for **Automated Music Archiver**.
+
+AMA-Unraid can monitor artist lists, fetch album information, send albums to a download backend, post-process completed music, generate/fetch `.lrc` lyrics, apply ReplayGain, clean metadata for Plex/Roon, and notify Plex to scan the finished album folder.
+
+This repository is a maintained fork of the original AMA project created by **RandomNinjaAtk**.
+
 ---
 
-# AMA-Unraid 2.0.0 - Deemix API Mode
+## Overview
 
-AMA-Unraid 2.0.0 adds a Deemix API download path for users who want AMA to use a running Deemix WebUI/API container instead of the legacy direct Deemix download flow.
+**AMA-Unraid** is designed for Unraid users who want an automated music archiving workflow.
+
+The current 2.0.0 workflow adds a **Deemix API Mode** that lets AMA send album URLs to a running Deemix WebUI/API container, wait for completed downloads, copy the finished files into AMA's processing folder, then continue the normal AMA post-processing chain.
+
+```text
+Artist list file
+      │
+      ▼
+AMA-Unraid
+      │
+      ├── Finds artist albums
+      ├── Filters album types
+      ├── Sends album URL to Deemix API
+      ├── Waits for Deemix queue/download completion
+      ├── Copies completed files into AMA temp folder
+      ├── Adds/fixes .lrc lyrics
+      ├── Cleans artist tags for Plex/Roon
+      ├── Adds ReplayGain
+      └── Notifies Plex using the correct scan path
+```
+
+---
+
+## Docker Image
+
+```text
+ghcr.io/crywolf203/ama-unraid:latest
+```
+
+Versioned tags may also be available:
+
+```text
+ghcr.io/crywolf203/ama-unraid:2.0.0
+```
+
+---
+
+## Important Note
+
+Deemix API Mode currently requires a separate running Deemix WebUI/API container.
+
+The next development phase is planned to test folding the Deemix API directly into AMA-Unraid as an internal service. Until that work is complete, use the external Deemix API container method described below.
+
+---
 
 ## Major 2.0.0 Features
 
 - Deemix API download client support
-- Timed `.lrc` lyric fallback using LRCLIB when Deemix does not provide synced lyrics
+- Timed `.lrc` lyric fallback using LRCLIB
 - Safe artist tag cleanup for Plex/Roon-friendly metadata
 - ReplayGain support after Deemix API downloads
 - Plex scan path override support
 - Improved Deemix API queue wait handling
 - Full AMA run log output on script exit
 - Optional legacy tag normalizer, disabled by default
+- Updated Unraid template variables for Deemix API mode
+
+---
+
+## Recommended Unraid Install
+
+Install from **Unraid Community Applications** when available.
+
+Search for:
+
+```text
+AMA-Unraid
+```
+
+Manual repository value:
+
+```text
+ghcr.io/crywolf203/ama-unraid:latest
+```
+
+Recommended mode for 2.0.0:
+
+```text
+DOWNLOAD_CLIENT=deemix_api
+```
 
 ---
 
@@ -27,7 +107,7 @@ DOWNLOAD_CLIENT=deemix_api
 
 AMA will send album URLs to the configured Deemix API, wait for Deemix to finish downloading, copy the completed files into AMA's temporary processing folder, then continue normal AMA post-processing.
 
-### Required Variables
+### Required Deemix API Variables
 
 ```text
 DOWNLOAD_CLIENT=deemix_api
@@ -45,11 +125,16 @@ DEEMIX_CONFIG_PATH=/deemix-config
 DEEMIX_DOWNLOAD_PATH=/deemix-downloads
 ```
 
-### Required Paths
+### Required Deemix API Paths
 
 The AMA container needs access to the same Deemix config and download folders used by the Deemix WebUI/API container.
 
-Example:
+| Container Path | Example Host Path | Access | Purpose |
+|---|---|---:|---|
+| `/deemix-config` | `/mnt/cache/appdata/Deemix-1` | Read/Write | Deemix config folder containing `login.json` |
+| `/deemix-downloads` | `/mnt/user/media2/deemix-1` | Read/Write | Deemix completed download folder |
+
+Example mappings:
 
 ```text
 /mnt/cache/appdata/Deemix-1:/deemix-config:rw
@@ -63,6 +148,67 @@ The Deemix config folder must contain a valid login session, usually:
 ```
 
 If Deemix is not logged in, log into the Deemix WebUI first, force update the ARL if needed, then restart Deemix.
+
+---
+
+## Required AMA Paths
+
+| Container Path | Example Host Path | Access | Purpose |
+|---|---|---:|---|
+| `/config` | `/mnt/cache/appdata/ama-unraid` | Read/Write | AMA config, scripts, cache, logs, and list files |
+| `/downloads-ama` | `/mnt/user/media/music` | Read/Write | Final processed music library |
+
+### `/config`
+
+This should point to persistent appdata.
+
+Recommended:
+
+```text
+/mnt/cache/appdata/ama-unraid
+```
+
+### `/downloads-ama`
+
+This should point to your final music library.
+
+Example:
+
+```text
+/mnt/user/media/music
+```
+
+AMA writes completed artist/album folders here.
+
+---
+
+## Artist List Files
+
+AMA processes artists from the `/config/list` folder.
+
+Artist files should use this format:
+
+```text
+DEEZE_ARTIST_ID-Artist Name.file
+```
+
+Examples:
+
+```text
+9262400-Jessie Reyez.file
+85065212-Leon Thomas.file
+5828-DJ Khaled.file
+```
+
+To process only one artist, clear the list folder and add one `.file` entry.
+
+Example:
+
+```bash
+mkdir -p /mnt/cache/appdata/ama-unraid/list
+rm -f /mnt/cache/appdata/ama-unraid/list/*
+touch "/mnt/cache/appdata/ama-unraid/list/5828-DJ Khaled.file"
+```
 
 ---
 
@@ -86,6 +232,90 @@ Other:
 - Artist separator: Standard Specification
 ```
 
+AMA's artist tag cleanup can then safely move featured artists into the title and keep the primary artist tag clean.
+
+---
+
+## Environment Variables
+
+### Core Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `PUID` | `99` | Runs files as the Unraid `nobody` user |
+| `PGID` | `100` | Runs files as the Unraid `users` group |
+| `TZ` | `America/New_York` | Container timezone |
+| `AUTOSTART` | `false` or `true` | Automatically run AMA when the container starts |
+| `SCRIPTINTERVAL` | `7d` | Interval between runs when autostart looping is enabled |
+| `MODE` | `artist` | Artist-list processing mode |
+| `DOWNLOAD_CLIENT` | `deemix_api` | Download backend |
+
+### Deemix API Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `DEEMIX_API_URL` | `http://SERVER-IP:6595` | URL for the running Deemix WebUI/API container |
+| `DEEMIX_CONFIG_PATH` | `/deemix-config` | Container path to Deemix config/login folder |
+| `DEEMIX_DOWNLOAD_PATH` | `/deemix-downloads` | Container path to Deemix download folder |
+| `DEEMIX_API_MAX_POLLS` | `8` | Short polling/stability window after files begin appearing |
+| `DEEMIX_API_QUEUE_MAX_POLLS` | `120` | Longer wait while Deemix still reports the album as queued |
+
+### Download and Post-Processing Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `FORMAT` | `FLAC` | Desired output format |
+| `BITRATE` | `320` | Bitrate setting used by legacy paths; FLAC mode uses lossless |
+| `FORCECONVERT` | `false` | Recommended false for Deemix API mode |
+| `REPLAYGAIN` | `true` | Adds ReplayGain tags after download |
+| `POSTPROCESSTHREADS` | `8` | Number of post-processing threads |
+| `EMBEDDED_COVER_QUALITY` | `100` | Embedded cover quality percentage |
+| `REQUIRE_QUALITY` | `false` | Require requested quality before processing |
+
+### Tag and Metadata Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `ENABLE_ARTIST_TAG_CLEANUP` | `true` | Keeps featured artists in title and primary artist clean |
+| `ENABLE_TAG_NORMALIZER` | `false` | Legacy broader tag normalizer. Disabled by default |
+
+### Album Filtering Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `ALBUM_TYPE_FILTER` | `COMPILE` | Album filtering mode |
+| `IGNORE_ARTIST_WITHOUT_IMAGE` | `true` | Ignore artists without images |
+| `RELATED_ARTIST` | `false` | Import related artists |
+| `RELATED_ARTIST_RELATED` | `false` | Related artist loop mode |
+| `RELATED_COUNT` | `0` | Maximum related artists to import |
+| `FAN_COUNT` | `10` | Minimum fan count threshold |
+| `COMPLETE_MY_ARTISTS` | `false` | Complete known artists |
+
+### Plex Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `NOTIFYPLEX` | `true` | Notify Plex after each album |
+| `PLEXLIBRARYNAME` | `Music` | Plex music library name |
+| `PLEXURL` | `http://SERVER-IP:32400` | Plex server URL |
+| `PLEXTOKEN` | Your token | Plex authentication token |
+| `PLEXSCANPATH` | `/media/music` | Plex's view of the music path |
+
+### Lidarr Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `LIDARR_LIST_IMPORT` | `false` | Import artists from Lidarr list |
+| `LIDARR_URL` | empty or URL | Lidarr server URL |
+| `LIDARR_API_KEY` | empty or key | Lidarr API key |
+
+### File Permission Variables
+
+| Variable | Recommended | Description |
+|---|---:|---|
+| `FILE_PERMISSIONS` | `777` or `644` | File permissions for completed music files |
+| `FOLDER_PERMISSIONS` | `777` or `755` | Folder permissions for completed music folders |
+
 ---
 
 ## Artist Tag Cleanup
@@ -94,7 +324,9 @@ AMA-Unraid 2.0.0 includes a safe artist cleanup step designed for Plex and Roon.
 
 It keeps featured artists in the track title while keeping the `ARTIST` and `ALBUMARTIST` tags clean.
 
-Example before cleanup:
+### Example 1: Featured artist already in title
+
+Before cleanup:
 
 ```text
 TITLE=FAR FETCHED (feat. Ty Dolla $ign)
@@ -102,7 +334,7 @@ ARTIST=Leon Thomas;Ty Dolla $ign
 album_artist=Leon Thomas
 ```
 
-Example after cleanup:
+After cleanup:
 
 ```text
 TITLE=FAR FETCHED (feat. Ty Dolla $ign)
@@ -110,17 +342,19 @@ ARTIST=Leon Thomas
 ALBUMARTIST=Leon Thomas
 ```
 
-For tracks where Deemix stores the featured artist only in the `ARTIST` tag, AMA moves the featured artist into the title.
+### Example 2: Featured artist only in ARTIST tag
 
-Example:
+Before cleanup:
 
 ```text
-Before:
 TITLE=Crash & Burn (Remix)
 ARTIST=Leon Thomas;Blxst
 album_artist=Leon Thomas
+```
 
-After:
+After cleanup:
+
+```text
 TITLE=Crash & Burn (Remix) (feat. Blxst)
 ARTIST=Leon Thomas
 ALBUMARTIST=Leon Thomas
@@ -285,6 +519,122 @@ This makes it easier to review the complete run after the terminal window closes
 
 ---
 
+## Basic Usage
+
+1. Make sure your Deemix WebUI/API container is running and logged in.
+2. Make sure AMA has access to the Deemix config and download folders.
+3. Add one or more artist files to `/config/list`.
+4. Start the AMA script.
+5. AMA will process the artist list, send albums to Deemix API, post-process the files, and notify Plex if enabled.
+
+Start manually:
+
+```bash
+docker exec -it AMA-Unraid bash /config/scripts/start.bash
+```
+
+Watch logs:
+
+```bash
+docker logs -f --tail=300 AMA-Unraid
+```
+
+---
+
+## Docker Compose Example
+
+```yaml
+services:
+  ama-unraid:
+    image: ghcr.io/crywolf203/ama-unraid:latest
+    container_name: AMA-Unraid
+    restart: unless-stopped
+    network_mode: bridge
+    environment:
+      TZ: "America/New_York"
+      PUID: "99"
+      PGID: "100"
+
+      AUTOSTART: "false"
+      SCRIPTINTERVAL: "7d"
+      MODE: "artist"
+
+      DOWNLOAD_CLIENT: "deemix_api"
+      DEEMIX_API_URL: "http://10.13.1.138:6595"
+      DEEMIX_CONFIG_PATH: "/deemix-config"
+      DEEMIX_DOWNLOAD_PATH: "/deemix-downloads"
+      DEEMIX_API_MAX_POLLS: "8"
+      DEEMIX_API_QUEUE_MAX_POLLS: "120"
+
+      FORMAT: "FLAC"
+      FORCECONVERT: "false"
+      REPLAYGAIN: "true"
+      POSTPROCESSTHREADS: "8"
+      EMBEDDED_COVER_QUALITY: "100"
+
+      ENABLE_ARTIST_TAG_CLEANUP: "true"
+      ENABLE_TAG_NORMALIZER: "false"
+
+      NOTIFYPLEX: "true"
+      PLEXLIBRARYNAME: "Music"
+      PLEXURL: "http://10.13.1.138:32400"
+      PLEXTOKEN: "YOUR-PLEX-TOKEN"
+      PLEXSCANPATH: "/media/music"
+
+      FILE_PERMISSIONS: "777"
+      FOLDER_PERMISSIONS: "777"
+
+    volumes:
+      - /mnt/cache/appdata/ama-unraid:/config
+      - /mnt/user/media/music:/downloads-ama
+      - /mnt/cache/appdata/Deemix-1:/deemix-config
+      - /mnt/user/media2/deemix-1:/deemix-downloads
+```
+
+---
+
+## Docker CLI Example
+
+```bash
+docker run -d \
+  --name AMA-Unraid \
+  --restart unless-stopped \
+  --net bridge \
+  -e TZ="America/New_York" \
+  -e PUID="99" \
+  -e PGID="100" \
+  -e AUTOSTART="false" \
+  -e SCRIPTINTERVAL="7d" \
+  -e MODE="artist" \
+  -e DOWNLOAD_CLIENT="deemix_api" \
+  -e DEEMIX_API_URL="http://10.13.1.138:6595" \
+  -e DEEMIX_CONFIG_PATH="/deemix-config" \
+  -e DEEMIX_DOWNLOAD_PATH="/deemix-downloads" \
+  -e DEEMIX_API_MAX_POLLS="8" \
+  -e DEEMIX_API_QUEUE_MAX_POLLS="120" \
+  -e FORMAT="FLAC" \
+  -e FORCECONVERT="false" \
+  -e REPLAYGAIN="true" \
+  -e POSTPROCESSTHREADS="8" \
+  -e EMBEDDED_COVER_QUALITY="100" \
+  -e ENABLE_ARTIST_TAG_CLEANUP="true" \
+  -e ENABLE_TAG_NORMALIZER="false" \
+  -e NOTIFYPLEX="true" \
+  -e PLEXLIBRARYNAME="Music" \
+  -e PLEXURL="http://10.13.1.138:32400" \
+  -e PLEXTOKEN="YOUR-PLEX-TOKEN" \
+  -e PLEXSCANPATH="/media/music" \
+  -e FILE_PERMISSIONS="777" \
+  -e FOLDER_PERMISSIONS="777" \
+  -v /mnt/cache/appdata/ama-unraid:/config:rw \
+  -v /mnt/user/media/music:/downloads-ama:rw \
+  -v /mnt/cache/appdata/Deemix-1:/deemix-config:rw \
+  -v /mnt/user/media2/deemix-1:/deemix-downloads:rw \
+  ghcr.io/crywolf203/ama-unraid:latest
+```
+
+---
+
 ## Troubleshooting Deemix API Mode
 
 ### Deemix API says files were not found
@@ -374,6 +724,33 @@ Settings → Storage → three dots on the music folder → Force Rescan
 
 For stubborn albums, remove and re-add the album or adjust Roon's album edit settings to prefer file metadata.
 
+### Permission issues
+
+Check:
+
+```text
+PUID=99
+PGID=100
+FILE_PERMISSIONS=777
+FOLDER_PERMISSIONS=777
+```
+
+Also confirm your `/downloads-ama` mapping is Read/Write.
+
+---
+
+## Related Projects
+
+| Project | Link |
+|---|---|
+| AMA-Unraid maintained fork | https://github.com/crywolf203/ama-unraid |
+| Unraid template repo | https://github.com/crywolf203/unraid-templates |
+| Revived Deemix project | https://github.com/bambanah/deemix |
+| Original AMA creator | https://github.com/RandomNinjaAtk |
+| LRCLIB | https://lrclib.net |
+| Plex | https://www.plex.tv |
+| Roon | https://roon.app |
+
 ---
 
 ## Credits and Acknowledgements
@@ -428,3 +805,33 @@ Special thanks to:
 - **Bockiii** for Deemix Docker image inspiration
 
 ---
+
+## Donations
+
+This project is a community-maintained Unraid fork and integration wrapper around upstream/open-source tools.
+
+If you find the upstream projects useful, consider supporting the original developers and maintainers first.
+
+If this Unraid container/template helped you, you can also support the maintenance work for this fork.
+
+---
+
+## Disclaimer
+
+This is an **unofficial** community-maintained AMA-Unraid fork.
+
+Use this container only with music and services you are authorized to access.
+
+For issues with this Docker image, Unraid template, paths, permissions, Deemix API integration, Plex scan behavior, or AMA-Unraid-specific post-processing, open an issue in this repository.
+
+For issues with Deemix itself, use the upstream Deemix project.
+
+---
+
+## License
+
+This container repository follows the license terms included in this repository.
+
+AMA, Deemix, and related upstream projects are licensed and maintained by their respective upstream projects. See each upstream repository for its license and source code.
+```
+::contentReference[oaicite:1]{index=1}
