@@ -1,39 +1,59 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/crywolf203/unraid-templates/main/ama-unraid-icon.png?v=2026-05-26" alt="AMA-Unraid icon" width="128">
+  <img src="https://raw.githubusercontent.com/crywolf203/unraid-templates/main/ama-unraid-icon.png?v=2026-05-26" alt="AMA-Unraid icon" width="160">
 </p>
 
-# AMA-Unraid
+<h1 align="center">AMA-Unraid</h1>
 
-Community-maintained Unraid-friendly Docker container for **Automated Music Archiver**.
+<p align="center">
+  <strong>Unraid-friendly Automated Music Archiver with Deemix API support, Plex/Roon-focused metadata cleanup, synced lyrics, ReplayGain, and clean post-processing.</strong>
+</p>
 
-AMA-Unraid can monitor artist lists, fetch album information, send albums to a download backend, post-process completed music, generate/fetch `.lrc` lyrics, apply ReplayGain, clean metadata for Plex/Roon, and notify Plex to scan the finished album folder.
+<p align="center">
+  <a href="https://unraid.net">
+    <img alt="Unraid" src="https://img.shields.io/badge/Unraid-Community%20Template-f15a24?style=for-the-badge">
+  </a>
+  <a href="https://github.com/crywolf203/ama-unraid/pkgs/container/ama-unraid">
+    <img alt="GHCR Image" src="https://img.shields.io/badge/GHCR-ama--unraid-blue?style=for-the-badge&logo=github">
+  </a>
+  <a href="https://github.com/crywolf203/ama-unraid/blob/master/LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge">
+  </a>
+  <a href="https://buymeacoffee.com/crywolf203">
+    <img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge">
+  </a>
+</p>
 
-This repository is a maintained fork of the original AMA project created by **RandomNinjaAtk**.
+<p align="center">
+  <a href="https://github.com/crywolf203/unraid-templates">
+    <img alt="Unraid Template Repo" src="https://img.shields.io/badge/Template%20Repo-crywolf203%2Funraid--templates-orange?style=flat-square">
+  </a>
+  <a href="https://github.com/RandomNinjaAtk">
+    <img alt="Original AMA Creator" src="https://img.shields.io/badge/Original%20AMA-RandomNinjaAtk-lightgrey?style=flat-square">
+  </a>
+  <a href="https://github.com/bambanah/deemix">
+    <img alt="Deemix" src="https://img.shields.io/badge/Deemix-API%20Mode-purple?style=flat-square">
+  </a>
+</p>
 
 ---
 
-## Overview
+## What is AMA-Unraid?
 
-**AMA-Unraid** is designed for Unraid users who want an automated music archiving workflow.
+**AMA-Unraid** is a community-maintained Unraid-focused fork of **Automated Music Archiver**, originally created by **RandomNinjaAtk**.
 
-The current 2.0.0 workflow adds a **Deemix API Mode** that lets AMA send album URLs to a running Deemix WebUI/API container, wait for completed downloads, copy the finished files into AMA's processing folder, then continue the normal AMA post-processing chain.
+This fork is designed for Unraid users who want an automated music archiving workflow that can:
 
-```text
-Artist list file
-      │
-      ▼
-AMA-Unraid
-      │
-      ├── Finds artist albums
-      ├── Filters album types
-      ├── Sends album URL to Deemix API
-      ├── Waits for Deemix queue/download completion
-      ├── Copies completed files into AMA temp folder
-      ├── Adds/fixes .lrc lyrics
-      ├── Cleans artist tags for Plex/Roon
-      ├── Adds ReplayGain
-      └── Notifies Plex using the correct scan path
-```
+- Monitor artist list files
+- Find artist albums
+- Send albums to a Deemix WebUI/API container
+- Wait for downloads to finish
+- Copy completed albums into AMA processing
+- Add or fetch `.lrc` lyrics
+- Clean metadata for Plex and Roon
+- Apply ReplayGain
+- Notify Plex to scan the finished album folder
+
+The current 2.0.0 workflow focuses on **Deemix API Mode**, where AMA-Unraid works alongside a separate Deemix WebUI/API container.
 
 ---
 
@@ -59,7 +79,7 @@ The next development phase is planned to test folding the Deemix API directly in
 
 ---
 
-## Major 2.0.0 Features
+## Major Features
 
 - Deemix API download client support
 - Timed `.lrc` lyric fallback using LRCLIB
@@ -83,7 +103,7 @@ Search for:
 AMA-Unraid
 ```
 
-Manual repository value:
+Manual Docker image value:
 
 ```text
 ghcr.io/crywolf203/ama-unraid:latest
@@ -93,6 +113,12 @@ Recommended mode for 2.0.0:
 
 ```text
 DOWNLOAD_CLIENT=deemix_api
+```
+
+Unraid template repository:
+
+```text
+https://github.com/crywolf203/unraid-templates
 ```
 
 ---
@@ -178,7 +204,7 @@ Example:
 /mnt/user/media/music
 ```
 
-AMA writes completed artist/album folders here.
+AMA writes completed artist and album folders here.
 
 ---
 
@@ -790,10 +816,6 @@ The Deemix project provides the pieces used by the Deemix API workflow, includin
 - `webui`
 - `gui`
 
-### Docker Inspiration for Deemix
-
-The revived Deemix project also credits **Bockiii** for Docker image inspiration.
-
 ### Thank You
 
 Special thanks to:
@@ -802,36 +824,32 @@ Special thanks to:
 - **crywolf203** for maintaining and extending AMA-Unraid
 - **bambanah** for the revived Deemix project
 - **RemixDev** for the original Deemix project
-- **Bockiii** for Deemix Docker image inspiration
+- **Bockiii** for Deemix Docker inspiration
 
 ---
 
-## Donations
+## Funding
 
 This project is a community-maintained Unraid fork and integration wrapper around upstream/open-source tools.
 
 If you find the upstream projects useful, consider supporting the original developers and maintainers first.
 
-If this Unraid container/template helped you, you can also support the maintenance work for this fork.
+If this Unraid-focused fork, template work, documentation, or troubleshooting saves you time, you can support this maintenance work here:
+
+<p align="center">
+  <a href="https://buymeacoffee.com/crywolf203">
+    <img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge">
+  </a>
+</p>
+
+```text
+https://buymeacoffee.com/crywolf203
+```
 
 ---
 
 ## Disclaimer
 
-This is an **unofficial** community-maintained AMA-Unraid fork.
+Use this container only with accounts, content, and services you are authorized to access.
 
-Use this container only with music and services you are authorized to access.
-
-For issues with this Docker image, Unraid template, paths, permissions, Deemix API integration, Plex scan behavior, or AMA-Unraid-specific post-processing, open an issue in this repository.
-
-For issues with Deemix itself, use the upstream Deemix project.
-
----
-
-## License
-
-This container repository follows the license terms included in this repository.
-
-AMA, Deemix, and related upstream projects are licensed and maintained by their respective upstream projects. See each upstream repository for its license and source code.
-```
-::contentReference[oaicite:1]{index=1}
+This repository does not claim ownership of upstream projects. It packages, documents, and extends the workflow for Unraid users.
