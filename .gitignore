@@ -1,0 +1,11 @@
+# AMA runtime/appdata folders
+/cache/
+/logs/
+/list/
+/scripts/
+/ignore/
+/deemix/
+
+# Runtime logs/temp
+*.log
+*.tmp
