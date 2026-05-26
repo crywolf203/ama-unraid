@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/crywolf203/unraid-templates/main/ama-unraid-icon.png" alt="AMA-Unraid icon" width="128">
+  <img src="https://raw.githubusercontent.com/crywolf203/unraid-templates/main/ama-unraid-icon.png?v=2026-05-26" alt="AMA-Unraid icon" width="128">
 </p>
 
 # AMA-Unraid
