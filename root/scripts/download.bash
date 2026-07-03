@@ -397,8 +397,8 @@ DownloadAlbumWithClient () {
 
 AddReplaygainTags () {
 	if [ "$REPLAYGAIN" == "true" ]; then
-		log "$logheader :: Adding Replaygain Tags using r128gain to files"
-		r128gain -r -a -s -c $POSTPROCESSTHREADS /downloads-ama/temp
+		log "$logheader :: Adding ReplayGain tags using rsgain"
+		bash /config/scripts/apply_replaygain.bash /downloads-ama/temp
 	fi
 }
 
@@ -1392,8 +1392,8 @@ Conversion () {
 
 AddReplaygainTags () {
 	if [ "$REPLAYGAIN" == "true" ]; then
-		log "$logheader :: DOWNLOAD :: Adding Replaygain Tags using r128gain"
-		r128gain -r -a /downloads-ama/temp
+		log "$logheader :: DOWNLOAD :: Adding ReplayGain tags using rsgain"
+		bash /config/scripts/apply_replaygain.bash /downloads-ama/temp
 	fi
 }
 

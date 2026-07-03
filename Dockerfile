@@ -18,7 +18,10 @@ RUN \
 		python3 \
 		ffmpeg \
 		opus-tools \
-		python3-pip && \
+		python3-pip \
+		wget \
+		xz-utils \
+		ca-certificates && \
 	rm -rf \
 		/tmp/* \
 		/var/lib/apt/lists/* \
@@ -32,10 +35,17 @@ python3 -m pip install --no-cache-dir \
   urllib3==1.26.9 \
   pycryptodomex==3.14.1 \
   mutagen==1.45.1 \
-  r128gain==1.0.6 \
   yq==2.14.0 \
   deezer-py==1.3.7 \
   deemix==3.6.6 && \
+	echo "************ install rsgain ************" && \
+	mkdir -p /tmp/rsgain /usr/local/bin && \
+	wget -O /tmp/rsgain/rsgain.tar.xz https://github.com/complexlogic/rsgain/releases/download/v3.7/rsgain-3.7-Linux.tar.xz && \
+	tar -xJf /tmp/rsgain/rsgain.tar.xz -C /tmp/rsgain && \
+	find /tmp/rsgain -type f -name rsgain -exec cp {} /usr/local/bin/rsgain \; && \
+	chmod +x /usr/local/bin/rsgain && \
+	rsgain --version && \
+	rm -rf /tmp/rsgain && \
 	echo "************ setup dl client config directory ************" && \
 	echo "************ make directory ************" && \
 	mkdir -p "${XDG_CONFIG_HOME}/deemix"
