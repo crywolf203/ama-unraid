@@ -125,6 +125,21 @@ Configuration () {
 	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
 		log "AMA: Download Client: Deemix API"
 		log "AMA: ARL_TOKEN: SKIPPED (using Deemix API login.json)"
+	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
+		log "AMA: Download Client: Deemix Direct Internal"
+		if [ ! -z "${ARL_TOKEN:-}" ]; then
+			log "$TITLESHORT: ARL Token: Configured"
+			mkdir -p "$XDG_CONFIG_HOME/deemix"
+			if [ -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
+				rm "$XDG_CONFIG_HOME/deemix/.arl"
+			fi
+			echo -n "$ARL_TOKEN" > "$XDG_CONFIG_HOME/deemix/.arl"
+		elif [ -f "${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json" ]; then
+			log "AMA: ARL_TOKEN: SKIPPED (using ${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json)"
+		else
+			log "ERROR: DOWNLOAD_CLIENT=deemix_direct requires ARL_TOKEN or ${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json"
+			error=1
+		fi
 	else
 	if [ ! -z "$ARL_TOKEN" ]; then
 		log "$TITLESHORT: ARL Token: Configured"
@@ -372,15 +387,18 @@ DownloadAlbumWithClient () {
 
 	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
 		bash /config/scripts/deemix_api_download.bash "$_album_url"
+	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
+		bash /config/scripts/deemix_direct_download.bash "$_album_url"
 	else
-		DownloadAlbumWithClient "$deezeralbumurl"
+		python3 /config/scripts/dlclient.py "$_album_url"
 	fi
 }
 
+
 AddReplaygainTags () {
 	if [ "$REPLAYGAIN" == "true" ]; then
-		log "$logheader :: Adding Replaygain Tags using r128gain to files"
-		r128gain -r -a -s -c $POSTPROCESSTHREADS /downloads-ama/temp
+		log "$logheader :: Adding ReplayGain tags using rsgain"
+		bash /config/scripts/apply_replaygain.bash /downloads-ama/temp
 	fi
 }
 
@@ -1374,8 +1392,8 @@ Conversion () {
 
 AddReplaygainTags () {
 	if [ "$REPLAYGAIN" == "true" ]; then
-		log "$logheader :: DOWNLOAD :: Adding Replaygain Tags using r128gain"
-		r128gain -r -a /downloads-ama/temp
+		log "$logheader :: DOWNLOAD :: Adding ReplayGain tags using rsgain"
+		bash /config/scripts/apply_replaygain.bash /downloads-ama/temp
 	fi
 }
 
