@@ -22,6 +22,22 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
 }
 
+
+# Serialize Deemix Direct runs because each album run writes the shared Deemix config.json.
+setup_deemix_direct_lock() {
+  local lock_file="${DEEMIX_DIRECT_LOCK:-/config/deemix/deemix-direct.lock}"
+  mkdir -p "$(dirname "$lock_file")"
+
+  if command -v flock >/dev/null 2>&1; then
+    exec 200>"$lock_file"
+    log "DEEMIX_DIRECT :: Waiting for Deemix Direct lock: $lock_file"
+    flock 200
+    log "DEEMIX_DIRECT :: Acquired Deemix Direct lock"
+  else
+    log "DEEMIX_DIRECT :: WARNING: flock not found; Deemix config writes are not serialized"
+  fi
+}
+
 fix_permissions() {
   local target="$1"
 
@@ -61,121 +77,6 @@ check_lrc_sidecars() {
   log "DEEMIX_DIRECT :: LRC summary: audio=$audio_count lrc_found=$lrc_found lrc_missing=$lrc_missing"
 }
 
-
-normalize_explicit_filenames() {
-  local album_folder="$1"
-  local album_id="$2"
-
-  if [ "${DEEMIX_DIRECT_APPEND_EXPLICIT:-true}" != "true" ]; then
-    log "DEEMIX_DIRECT :: Explicit filename labels disabled"
-    return
-  fi
-
-  
-  ALBUM_FOLDER="$album_folder" ALBUM_ID="$album_id" python3 - <<'PY'
-import json
-import os
-import re
-import urllib.request
-from pathlib import Path
-
-root = Path(os.environ["ALBUM_FOLDER"])
-album_id = os.environ.get("ALBUM_ID", "").strip()
-
-audio_exts = {".flac", ".mp3", ".m4a", ".opus"}
-
-def fetch_album(album_id):
-    if not album_id:
-        return {}
-    url = f"https://api.deezer.com/album/{album_id}"
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "AMA-Unraid/2.0",
-            "Accept": "application/json",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8", errors="replace"))
-
-def clean_existing_label(stem):
-    return re.search(r"\((explicit|clean)\)\s*$", stem, flags=re.I) is not None
-
-def position_key(track):
-    disk = track.get("disk_number") or track.get("disk") or 1
-    pos = track.get("track_position") or track.get("track_position_on_disk") or track.get("position")
-    try:
-        disk = int(disk)
-    except Exception:
-        disk = 1
-    try:
-        pos = int(pos)
-    except Exception:
-        return None
-
-    return f"{disk}{pos:02d}"
-
-def rename_with_sidecar(path, explicit):
-    if not explicit:
-        return False
-
-    stem = path.stem
-
-    if clean_existing_label(stem):
-        return False
-
-    new_path = path.with_name(f"{stem} (Explicit){path.suffix}")
-
-    if new_path.exists():
-        return False
-
-    old_lrc = path.with_suffix(".lrc")
-    new_lrc = new_path.with_suffix(".lrc")
-
-    path.rename(new_path)
-
-    if old_lrc.exists() and not new_lrc.exists():
-        old_lrc.rename(new_lrc)
-
-    print(f"EXPLICIT_FILENAME :: renamed :: {path.name} -> {new_path.name}")
-    return True
-
-explicit_by_position = {}
-
-try:
-    album = fetch_album(album_id)
-    tracks = ((album.get("tracks") or {}).get("data") or [])
-
-    for track in tracks:
-        key = position_key(track)
-        if not key:
-            continue
-        explicit_by_position[key] = bool(track.get("explicit_lyrics"))
-except Exception as exc:
-    print(f"EXPLICIT_FILENAME :: warning :: album API failed: {exc}")
-
-renamed = 0
-checked = 0
-
-for path in sorted(root.rglob("*")):
-    if not path.is_file() or path.suffix.lower() not in audio_exts:
-        continue
-
-    checked += 1
-    match = re.match(r"^(\d{3})\s+-\s+", path.name)
-    if not match:
-        continue
-
-    key = match.group(1)
-    explicit = explicit_by_position.get(key, False)
-
-    if rename_with_sidecar(path, explicit):
-        renamed += 1
-
-print(f"EXPLICIT_FILENAME :: checked={checked} renamed={renamed}")
-PY
-}
-
 TEMP_DIR="/downloads-ama/temp"
 DEEMIX_CONFIG_PATH="${DEEMIX_CONFIG_PATH:-/deemix-config}"
 XDG_CONFIG_HOME="/config/deemix/xdg"
@@ -189,6 +90,8 @@ log "DEEMIX_DIRECT :: Album URL: $ALBUM_URL"
 log "DEEMIX_DIRECT :: Album ID:  $ALBUM_ID"
 log "DEEMIX_DIRECT :: Temp dir:   $TEMP_DIR"
 log "DEEMIX_DIRECT :: Flow:       direct-temp"
+
+setup_deemix_direct_lock
 
 log "DEEMIX_DIRECT :: Cleaning AMA temp before album"
 find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
@@ -231,6 +134,8 @@ config_path.write_text(json.dumps(config, indent=2))
 print(f"DEEMIX_DIRECT :: Wrote Deemix config: {config_path}")
 print(f"DEEMIX_DIRECT :: albumTracknameTemplate={config['albumTracknameTemplate']}")
 print(f"DEEMIX_DIRECT :: tracknameTemplate={config['tracknameTemplate']}")
+print(f"DEEMIX_DIRECT :: albumExplicitEnv={os.environ.get('AMA_ALBUM_EXPLICIT', '').strip().lower() or '<unset>'}")
+print(f"DEEMIX_DIRECT :: nativeExplicitFilenameSuffix={'enabled' if explicit_suffix else 'disabled'}")
 print(f"DEEMIX_DIRECT :: createSingleFolder={config['createSingleFolder']}")
 print(f"DEEMIX_DIRECT :: queueConcurrency={config['queueConcurrency']}")
 PY
