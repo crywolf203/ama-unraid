@@ -184,7 +184,30 @@ def lrclib_search(artist, title, album, duration):
 
     return "", ""
 
-album_dirs = [p for p in root.rglob(f"*({album_id})") if p.is_dir()]
+album_dirs = []
+
+for candidate in root.rglob("*"):
+    if not candidate.is_dir():
+        continue
+
+    name = candidate.name
+
+    if f"[{album_id}]" in name or f"({album_id})" in name:
+        album_dirs.append(candidate)
+
+if not album_dirs:
+    # Last-resort fallback for Deemix Direct:
+    # /downloads-ama/temp is cleaned per album, so if there is exactly one
+    # folder containing audio files, use that folder.
+    media_dirs = sorted({
+        p.parent
+        for p in root.rglob("*")
+        if p.is_file() and p.suffix.lower() in audio_exts
+    })
+
+    if len(media_dirs) == 1:
+        album_dirs = [media_dirs[0]]
+
 if not album_dirs:
     raise SystemExit(f"No album directory found for album ID {album_id}")
 
