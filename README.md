@@ -1,83 +1,55 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/crywolf203/unraid-templates/main/ama-unraid-icon.png?v=2026-05-26" alt="AMA-Unraid icon" width="160">
-</p>
+# AMA-Unraid
 
-<h1 align="center">AMA-Unraid</h1>
+Unraid-friendly Automated Music Archiver with **Deemix Direct**, synced `.lrc` lyrics, ReplayGain, Plex/Roon-friendly metadata cleanup, high-quality album art, and clean post-processing.
 
-<p align="center">
-  <strong>Unraid-friendly Automated Music Archiver with Deemix Direct support, synced lyrics, ReplayGain, Plex/Roon-friendly metadata cleanup, and clean post-processing.</strong>
-</p>
-
-<p align="center">
-  <a href="https://unraid.net">
-    <img alt="Unraid" src="https://img.shields.io/badge/Unraid-Community%20Template-f15a24?style=for-the-badge">
-  </a>
-  <a href="https://github.com/crywolf203/ama-unraid/pkgs/container/ama-unraid">
-    <img alt="GHCR Image" src="https://img.shields.io/badge/GHCR-ama--unraid-blue?style=for-the-badge&logo=github">
-  </a>
-  <a href="https://github.com/crywolf203/ama-unraid/blob/master/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge">
-  </a>
-  <a href="https://buymeacoffee.com/crywolf203">
-    <img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/crywolf203/unraid-templates">
-    <img alt="Unraid Template Repo" src="https://img.shields.io/badge/Template%20Repo-crywolf203%2Funraid--templates-orange?style=flat-square">
-  </a>
-  <a href="https://github.com/RandomNinjaAtk">
-    <img alt="Original AMA Creator" src="https://img.shields.io/badge/Original%20AMA-RandomNinjaAtk-lightgrey?style=flat-square">
-  </a>
-  <a href="https://github.com/bambanah/deemix">
-    <img alt="Deemix" src="https://img.shields.io/badge/Deemix-Direct%20Mode-purple?style=flat-square">
-  </a>
-</p>
+AMA-Unraid is a community-maintained Unraid-focused fork of Automated Music Archiver, originally created by RandomNinjaAtk.
 
 ---
 
-## What is AMA-Unraid?
+## What AMA-Unraid Does
 
-**AMA-Unraid** is a community-maintained Unraid-focused fork of **Automated Music Archiver**, originally created by **RandomNinjaAtk**.
+AMA-Unraid automates a music archiving workflow for Unraid users.
 
-This fork is designed for Unraid users who want an automated music archiving workflow that can:
+It can:
 
 * Monitor artist list files
-* Find artist albums from Deezer artist IDs
-* Download albums using internal **Deemix Direct** mode
-* Use a safe direct-temp workflow through `/downloads-ama/temp`
-* Add or fetch `.lrc` synced lyrics
-* Clean metadata for Plex and Roon
+* Find albums from Deezer artist IDs
+* Download albums using internal Deemix Direct mode
+* Use a safe temporary workflow through `/downloads-ama/temp`
+* Embed high-quality album artwork
+* Save high-quality local `cover.jpg` artwork
+* Fall back to another audio format when FLAC is unavailable
+* Add or fetch synced `.lrc` lyrics
+* Clean artist tags for Plex and Roon
 * Apply ReplayGain
-* Notify Plex to scan the finished album folder
-* Save useful logs for future debugging
+* Notify Plex to scan the completed album folder
+* Save logs for troubleshooting
 
-The recommended workflow is **Deemix Direct**:
+The recommended workflow is:
 
-```text
+```bash
 DOWNLOAD_CLIENT=deemix_direct
 ```
 
-Legacy external Deemix API mode is still available with:
+Legacy external Deemix API mode is still available:
 
-```text
+```bash
 DOWNLOAD_CLIENT=deemix_api
 ```
 
-New installs should use **Deemix Direct** unless you specifically need the older external API container workflow.
+New installs should use **Deemix Direct** unless you specifically need the older external Deemix API container workflow.
 
 ---
 
 ## Docker Image
 
-```text
+```bash
 ghcr.io/crywolf203/ama-unraid:latest
 ```
 
-Versioned tags may also be available:
+Versioned tag:
 
-```text
+```bash
 ghcr.io/crywolf203/ama-unraid:2.0.0
 ```
 
@@ -85,7 +57,7 @@ ghcr.io/crywolf203/ama-unraid:2.0.0
 
 ## Recommended Unraid Install
 
-Install from **Unraid Community Applications** when available.
+Install from Unraid Community Applications when available.
 
 Search for:
 
@@ -95,13 +67,13 @@ AMA-Unraid
 
 Manual Docker image value:
 
-```text
+```bash
 ghcr.io/crywolf203/ama-unraid:latest
 ```
 
 Recommended download client:
 
-```text
+```bash
 DOWNLOAD_CLIENT=deemix_direct
 ```
 
@@ -117,33 +89,31 @@ https://github.com/crywolf203/unraid-templates
 
 Set:
 
-```text
+```bash
 DOWNLOAD_CLIENT=deemix_direct
 ```
 
 Deemix Direct runs Deemix inside the AMA-Unraid container instead of sending albums to a separate Deemix WebUI/API container.
 
-The safe direct-temp flow is:
+### Deemix Direct Flow
 
-```text
-1. Clean /downloads-ama/temp before each album
-2. Let deemix download directly into /downloads-ama/temp
-3. Find the downloaded album folder
-4. Add the album ID to the temporary album folder when needed
-5. Run lrc_fallback.py with /downloads-ama/temp and the album ID
-6. Flatten audio files, .lrc files, and cover.jpg into /downloads-ama/temp
-7. Let AMA continue normal import, tagging, ReplayGain, permissions, and Plex notification
-```
+The safe direct-temp flow works like this:
 
-There is currently **no separate staging folder required**.
+1. AMA cleans `/downloads-ama/temp` before each album.
+2. Deemix downloads the album directly into `/downloads-ama/temp`.
+3. AMA finds the temporary downloaded album folder.
+4. AMA adds the album ID to the temporary album folder when needed.
+5. AMA runs `lrc_fallback.py` using `/downloads-ama/temp` and the album ID.
+6. AMA flattens audio files, `.lrc` files, and `cover.jpg` into `/downloads-ama/temp`.
+7. AMA continues normal import, tag cleanup, ReplayGain, permissions, and Plex notification.
 
 The internal working folder is:
 
-```text
+```bash
 /downloads-ama/temp
 ```
 
-AMA cleans that temp folder before each album, uses it as the safe Deemix download area, then flattens the album files into the temp root so normal AMA post-processing can continue.
+Do not map `/downloads-ama/temp` separately. It is created and managed internally by AMA-Unraid.
 
 ---
 
@@ -157,39 +127,37 @@ AMA cleans that temp folder before each album, uses it as the safe Deemix downlo
 
 Example mappings:
 
-```text
+```bash
 /mnt/cache/appdata/ama-unraid:/config:rw
 /mnt/user/media/music:/downloads-ama:rw
 /mnt/cache/appdata/Deemix-1:/deemix-config:rw
 ```
 
-`/downloads-ama/temp` is created and managed internally by AMA-Unraid. Do not map it separately.
-
 ---
 
 ## Deemix Login
 
-Deemix Direct needs either:
+Deemix Direct needs either a valid Deemix login file:
 
-```text
+```bash
 /deemix-config/login.json
 ```
 
-or:
+Or an ARL token:
 
-```text
+```bash
 ARL_TOKEN=your_arl_token_here
 ```
 
 Recommended method:
 
-```text
+```bash
 /mnt/cache/appdata/Deemix-1:/deemix-config:rw
 ```
 
 The mapped folder should contain:
 
-```text
+```bash
 /deemix-config/login.json
 ```
 
@@ -206,7 +174,7 @@ Do not publish your `login.json` or ARL token.
 3. Make sure `/deemix-config/login.json` exists, or set `ARL_TOKEN`.
 4. Add one or more artist files to `/config/list`.
 5. Start AMA manually or enable autostart.
-6. AMA will process the artist list, download albums with Deemix Direct, post-process the files, and notify Plex if enabled.
+6. AMA processes the artist list, downloads albums with Deemix Direct, post-processes the files, and notifies Plex if enabled.
 
 Start manually:
 
@@ -224,7 +192,6 @@ View saved AMA run logs from the host:
 
 ```bash
 ls -lah /mnt/cache/appdata/ama-unraid/logs
-
 tail -f -n 300 "$(ls -t /mnt/cache/appdata/ama-unraid/logs/*.log | head -1)"
 ```
 
@@ -266,11 +233,11 @@ touch "/mnt/cache/appdata/ama-unraid/list/5828-DJ Khaled.file"
 
 ---
 
-## Recommended Deemix Direct Settings
+## Deemix Direct Runtime Settings
 
-Deemix Direct writes its own runtime config for the internal Deemix CLI so the album download lands directly in:
+Deemix Direct writes its own runtime config for the internal Deemix CLI so each album downloads directly into:
 
-```text
+```bash
 /downloads-ama/temp
 ```
 
@@ -282,15 +249,81 @@ albumTracknameTemplate=%discnumber%%tracknumber% - %title%
 tracknameTemplate=%discnumber%%tracknumber% - %title%
 createSingleFolder=true
 queueConcurrency=1
+fallbackBitrate=True
+embeddedArtworkSize=1400
+localArtworkSize=1400
+jpegImageQuality=100
+embeddedArtworkPNG=False
+tags.cover=True
 ```
 
 You can adjust direct Deemix concurrency with:
 
-```text
+```bash
 DEEMIX_QUEUE_CONCURRENCY=1
 ```
 
 The recommended value is `1` because AMA processes albums one at a time and the temp folder is cleaned before each album.
+
+---
+
+## Bitrate Fallback Behavior
+
+AMA-Unraid currently enables Deemix bitrate fallback:
+
+```python
+config["fallbackBitrate"] = True
+```
+
+This means if `FORMAT=FLAC` is requested but FLAC is not available for a release, Deemix may fall back to a lower available format instead of failing the download.
+
+Example log behavior:
+
+```text
+Desired bitrate not found, falling back to lower bitrate
+```
+
+Possible fallback formats include:
+
+```text
+.mp3
+.m4a
+.opus
+```
+
+This is helpful when you want the album to download even if lossless quality is unavailable.
+
+Important note:
+
+* Current fallback behavior is enabled in the script.
+* A future improvement may add a variable such as `DEEMIX_FALLBACK_BITRATE=true/false`.
+* If you need strict FLAC-only behavior, watch the output format carefully until fallback handling is made configurable.
+
+---
+
+## High-Quality Album Artwork
+
+AMA-Unraid configures Deemix to use high-quality artwork.
+
+Current artwork behavior:
+
+```python
+config["embeddedArtworkSize"] = 1400
+config["localArtworkSize"] = 1400
+config["jpegImageQuality"] = 100
+config["embeddedArtworkPNG"] = False
+config["tags"]["cover"] = True
+```
+
+This means:
+
+* Embedded artwork is requested at 1400px.
+* Local artwork such as `cover.jpg` is requested at 1400px.
+* JPEG artwork quality is set to 100.
+* Embedded artwork uses JPEG instead of PNG.
+* Cover artwork tagging is enabled.
+
+The goal is high-quality artwork without unnecessarily large embedded PNG files.
 
 ---
 
@@ -308,33 +341,82 @@ The recommended value is `1` because AMA processes albums one at a time and the 
 | `MODE`            |           `artist` | Artist-list processing mode                             |
 | `DOWNLOAD_CLIENT` |    `deemix_direct` | Recommended download backend                            |
 
+---
+
 ### Deemix Direct Variables
 
-| Variable                   |         Recommended | Description                                  |
-| -------------------------- | ------------------: | -------------------------------------------- |
-| `DOWNLOAD_CLIENT`          |     `deemix_direct` | Uses the internal Deemix Direct workflow     |
-| `DEEMIX_CONFIG_PATH`       |    `/deemix-config` | Container path to Deemix `login.json` folder |
-| `ARL_TOKEN`                | empty or your token | Optional fallback login method               |
-| `DEEMIX_QUEUE_CONCURRENCY` |                 `1` | Internal Deemix direct download concurrency  |
+| Variable                   |         Recommended | Description                                      |
+| -------------------------- | ------------------: | ------------------------------------------------ |
+| `DOWNLOAD_CLIENT`          |     `deemix_direct` | Uses the internal Deemix Direct workflow         |
+| `DEEMIX_CONFIG_PATH`       |    `/deemix-config` | Container path to the Deemix login/config folder |
+| `ARL_TOKEN`                | empty or your token | Optional fallback login method                   |
+| `DEEMIX_QUEUE_CONCURRENCY` |                 `1` | Internal Deemix direct download concurrency      |
+
+---
+
+### Artwork Variables
+
+| Variable                       | Recommended | Description                                   |
+| ------------------------------ | ----------: | --------------------------------------------- |
+| `DEEMIX_EMBEDDED_ARTWORK_SIZE` |      `1400` | Embedded album artwork size                   |
+| `DEEMIX_LOCAL_ARTWORK_SIZE`    |      `1400` | Local album artwork size, such as `cover.jpg` |
+| `DEEMIX_JPEG_IMAGE_QUALITY`    |       `100` | JPEG artwork quality                          |
+| `EMBEDDED_COVER_QUALITY`       |       `100` | Legacy/fallback artwork quality variable      |
+
+Recommended artwork settings:
+
+```bash
+DEEMIX_EMBEDDED_ARTWORK_SIZE=1400
+DEEMIX_LOCAL_ARTWORK_SIZE=1400
+DEEMIX_JPEG_IMAGE_QUALITY=100
+```
+
+`EMBEDDED_COVER_QUALITY` is still supported as a fallback, but `DEEMIX_JPEG_IMAGE_QUALITY` is preferred for Deemix Direct artwork quality.
+
+---
 
 ### Download and Post-Processing Variables
 
-| Variable                 | Recommended | Description                                     |
-| ------------------------ | ----------: | ----------------------------------------------- |
-| `FORMAT`                 |      `FLAC` | Desired output format                           |
-| `BITRATE`                |       `320` | Bitrate setting used for MP3-style output paths |
-| `FORCECONVERT`           |     `false` | Recommended false for Deemix Direct             |
-| `REPLAYGAIN`             |      `true` | Adds ReplayGain tags after download             |
-| `POSTPROCESSTHREADS`     |         `8` | Number of post-processing threads               |
-| `EMBEDDED_COVER_QUALITY` |       `100` | Embedded cover quality percentage               |
-| `REQUIRE_QUALITY`        |     `false` | Require requested quality before processing     |
+| Variable             | Recommended | Description                                     |
+| -------------------- | ----------: | ----------------------------------------------- |
+| `FORMAT`             |      `FLAC` | Desired output format                           |
+| `BITRATE`            |       `320` | Bitrate setting used for MP3-style output paths |
+| `FORCECONVERT`       |     `false` | Recommended false for Deemix Direct             |
+| `REPLAYGAIN`         |      `true` | Adds ReplayGain tags after download             |
+| `POSTPROCESSTHREADS` |         `8` | Number of post-processing threads               |
+| `REQUIRE_QUALITY`    |     `false` | Require requested quality before processing     |
+
+Recommended:
+
+```bash
+FORMAT=FLAC
+BITRATE=320
+FORCECONVERT=false
+REPLAYGAIN=true
+REQUIRE_QUALITY=false
+```
+
+Note about `REQUIRE_QUALITY`:
+
+Current Deemix Direct fallback behavior may allow a lower available format when FLAC is unavailable. A future update should make fallback behavior stricter when `REQUIRE_QUALITY=true`.
+
+---
 
 ### Tag and Metadata Variables
 
-| Variable                    | Recommended | Description                                              |
-| --------------------------- | ----------: | -------------------------------------------------------- |
-| `ENABLE_ARTIST_TAG_CLEANUP` |      `true` | Keeps featured artists in title and primary artist clean |
-| `ENABLE_TAG_NORMALIZER`     |     `false` | Legacy broader tag normalizer. Disabled by default       |
+| Variable                    | Recommended | Description                                                  |
+| --------------------------- | ----------: | ------------------------------------------------------------ |
+| `ENABLE_ARTIST_TAG_CLEANUP` |      `true` | Keeps featured artists in the title and primary artist clean |
+| `ENABLE_TAG_NORMALIZER`     |     `false` | Legacy broader tag normalizer. Disabled by default           |
+
+Recommended:
+
+```bash
+ENABLE_ARTIST_TAG_CLEANUP=true
+ENABLE_TAG_NORMALIZER=false
+```
+
+---
 
 ### Album Filtering Variables
 
@@ -348,6 +430,8 @@ The recommended value is `1` because AMA processes albums one at a time and the 
 | `FAN_COUNT`                   |        `10` | Minimum fan count threshold       |
 | `COMPLETE_MY_ARTISTS`         |     `false` | Complete known artists            |
 
+---
+
 ### Plex Variables
 
 | Variable          |              Recommended | Description                   |
@@ -355,8 +439,10 @@ The recommended value is `1` because AMA processes albums one at a time and the 
 | `NOTIFYPLEX`      |                   `true` | Notify Plex after each album  |
 | `PLEXLIBRARYNAME` |                  `Music` | Plex music library name       |
 | `PLEXURL`         | `http://SERVER-IP:32400` | Plex server URL               |
-| `PLEXTOKEN`       |               Your token | Plex authentication token     |
+| `PLEXTOKEN`       |               your token | Plex authentication token     |
 | `PLEXSCANPATH`    |           `/media/music` | Plex's view of the music path |
+
+---
 
 ### Lidarr Variables
 
@@ -365,6 +451,8 @@ The recommended value is `1` because AMA processes albums one at a time and the 
 | `LIDARR_LIST_IMPORT` |      `false` | Import artists from Lidarr list |
 | `LIDARR_URL`         | empty or URL | Lidarr server URL               |
 | `LIDARR_API_KEY`     | empty or key | Lidarr API key                  |
+
+---
 
 ### File Permission Variables
 
@@ -414,7 +502,13 @@ DEEMIX_DIRECT :: Running LRC fallback album ID: ALBUM_ID
 DEEMIX_DIRECT :: Temp audio count: greater than 0
 ```
 
-The direct LRC fallback call should use the temp root plus album ID, not the temporary album subfolder.
+The LRC fallback call should use the temp root plus album ID, not the temporary album subfolder.
+
+Correct:
+
+```bash
+lrc_fallback.py /downloads-ama/temp ALBUM_ID
+```
 
 ---
 
@@ -422,25 +516,25 @@ The direct LRC fallback call should use the temp root plus album ID, not the tem
 
 AMA-Unraid saves run logs in:
 
-```text
+```bash
 /config/logs
 ```
 
 From the Unraid host, this usually maps to:
 
-```text
+```bash
 /mnt/cache/appdata/ama-unraid/logs
 ```
 
 Main AMA run logs look like:
 
-```text
+```bash
 /config/logs/script_run_1_YYYY_MM_DD_HH_MM_AM.log
 ```
 
 Deemix Direct per-album logs look like:
 
-```text
+```bash
 /config/logs/deemix-direct-ALBUM_ID-YYYYMMDD-HHMMSS.log
 ```
 
@@ -458,7 +552,7 @@ docker exec -it AMA-Unraid bash -lc 'tail -f -n 300 "$(ls -t /config/logs/*.log 
 
 # Focus only on Deemix Direct and common error lines
 docker exec -it AMA-Unraid bash -lc '
-grep -nE "DEEMIX_DIRECT|lrc_fallback|LRC|lyrics|Flattening|TEMP DEBUG|ERROR|Traceback|Exception|failed|Failed" /config/logs/*.log | tail -n 300
+grep -nE "DEEMIX_DIRECT|lrc_fallback|LRC|lyrics|Flattening|ERROR|Traceback|Exception|failed|Failed" /config/logs/*.log | tail -n 300
 '
 ```
 
@@ -481,8 +575,8 @@ services:
       AUTOSTART: "false"
       SCRIPTINTERVAL: "7d"
       MODE: "artist"
-
       DOWNLOAD_CLIENT: "deemix_direct"
+
       DEEMIX_CONFIG_PATH: "/deemix-config"
       DEEMIX_QUEUE_CONCURRENCY: "1"
 
@@ -491,8 +585,11 @@ services:
       FORCECONVERT: "false"
       REPLAYGAIN: "true"
       POSTPROCESSTHREADS: "8"
-      EMBEDDED_COVER_QUALITY: "100"
       REQUIRE_QUALITY: "false"
+
+      DEEMIX_EMBEDDED_ARTWORK_SIZE: "1400"
+      DEEMIX_LOCAL_ARTWORK_SIZE: "1400"
+      DEEMIX_JPEG_IMAGE_QUALITY: "100"
 
       ENABLE_ARTIST_TAG_CLEANUP: "true"
       ENABLE_TAG_NORMALIZER: "false"
@@ -547,8 +644,10 @@ docker run -d \
   -e FORCECONVERT="false" \
   -e REPLAYGAIN="true" \
   -e POSTPROCESSTHREADS="8" \
-  -e EMBEDDED_COVER_QUALITY="100" \
   -e REQUIRE_QUALITY="false" \
+  -e DEEMIX_EMBEDDED_ARTWORK_SIZE="1400" \
+  -e DEEMIX_LOCAL_ARTWORK_SIZE="1400" \
+  -e DEEMIX_JPEG_IMAGE_QUALITY="100" \
   -e ENABLE_ARTIST_TAG_CLEANUP="true" \
   -e ENABLE_TAG_NORMALIZER="false" \
   -e ALBUM_TYPE_FILTER="COMPILE" \
@@ -605,6 +704,14 @@ Expected temp-root output should include audio files, matching `.lrc` files when
 /downloads-ama/temp/cover.jpg
 ```
 
+If FLAC is unavailable and bitrate fallback is used, the audio file may be a fallback format:
+
+```text
+/downloads-ama/temp/01 - Track.mp3
+/downloads-ama/temp/01 - Track.lrc
+/downloads-ama/temp/cover.jpg
+```
+
 ---
 
 ## Artist Tag Cleanup
@@ -613,7 +720,18 @@ AMA-Unraid includes a safe artist cleanup step designed for Plex and Roon.
 
 It keeps featured artists in the track title while keeping the `ARTIST` and `ALBUMARTIST` tags clean.
 
-### Example 1: Featured artist already in title
+The cleanup script currently supports these audio formats:
+
+```text
+.flac
+.mp3
+.m4a
+.opus
+```
+
+This matters because Deemix bitrate fallback may produce MP3, M4A, or OPUS files when FLAC is unavailable.
+
+### Example 1: Featured Artist Already in Title
 
 Before cleanup:
 
@@ -631,7 +749,7 @@ ARTIST=Leon Thomas
 ALBUMARTIST=Leon Thomas
 ```
 
-### Example 2: Featured artist only in ARTIST tag
+### Example 2: Featured Artist Only in ARTIST Tag
 
 Before cleanup:
 
@@ -649,15 +767,15 @@ ARTIST=Leon Thomas
 ALBUMARTIST=Leon Thomas
 ```
 
-This is enabled by default:
+Artist cleanup is enabled by default:
 
-```text
+```bash
 ENABLE_ARTIST_TAG_CLEANUP=true
 ```
 
 The older tag normalizer is optional and disabled by default:
 
-```text
+```bash
 ENABLE_TAG_NORMALIZER=false
 ```
 
@@ -696,7 +814,7 @@ If no lyrics exist from Deemix, LRCLIB, or embedded metadata, AMA leaves the tra
 
 For Deemix Direct, the fallback is run with:
 
-```text
+```bash
 lrc_fallback.py /downloads-ama/temp ALBUM_ID
 ```
 
@@ -704,11 +822,25 @@ That allows the fallback script to find the temporary album folder by album ID a
 
 ---
 
+## ReplayGain
+
+AMA-Unraid can apply ReplayGain tags after download.
+
+Enable with:
+
+```bash
+REPLAYGAIN=true
+```
+
+ReplayGain helps normalize playback volume across tracks and albums without permanently changing the audio.
+
+---
+
 ## Plex Scan Path Override
 
 If Plex sees the music path differently than AMA, set:
 
-```text
+```bash
 PLEXSCANPATH=/media/music
 ```
 
@@ -716,25 +848,25 @@ Example:
 
 AMA container path:
 
-```text
+```bash
 /downloads-ama
 ```
 
 Plex library path:
 
-```text
+```bash
 /media/music
 ```
 
 With `PLEXSCANPATH=/media/music`, AMA sends Plex the corrected scan path:
 
-```text
+```bash
 /media/music/Artist/Album
 ```
 
-instead of:
+Instead of:
 
-```text
+```bash
 /downloads-ama/Artist/Album
 ```
 
@@ -744,7 +876,7 @@ instead of:
 
 The older external Deemix API workflow is still available:
 
-```text
+```bash
 DOWNLOAD_CLIENT=deemix_api
 ```
 
@@ -752,7 +884,7 @@ This mode requires a separate running Deemix WebUI/API container.
 
 Required variables:
 
-```text
+```bash
 DOWNLOAD_CLIENT=deemix_api
 DEEMIX_API_URL=http://SERVER-IP:6595
 DEEMIX_CONFIG_PATH=/deemix-config
@@ -767,7 +899,7 @@ Required extra path:
 
 Example mapping:
 
-```text
+```bash
 /mnt/user/media2/deemix-1:/deemix-downloads:rw
 ```
 
@@ -777,7 +909,7 @@ New installs should prefer Deemix Direct unless there is a specific reason to ke
 
 ## Troubleshooting Deemix Direct
 
-### Container starts but AMA does not run
+### Container Starts but AMA Does Not Run
 
 If the log shows:
 
@@ -786,39 +918,59 @@ Automatic Start Disabled, manually run using this command:
 bash /config/scripts/start.bash
 ```
 
-then either enable:
+Then either enable:
 
-```text
+```bash
 AUTOSTART=true
 ```
 
-or start manually:
+Or start manually:
 
 ```bash
 docker exec -it AMA-Unraid bash -lc 'bash /config/scripts/start.bash'
 ```
 
-### Deemix Direct cannot log in
+---
+
+### Deemix Direct Cannot Log In
 
 Confirm one of these exists:
 
-```text
+```bash
 /deemix-config/login.json
 ```
 
-or:
+Or:
 
-```text
+```bash
 ARL_TOKEN=your_arl_token_here
 ```
 
 Also confirm the path mapping is read/write:
 
-```text
+```bash
 /mnt/cache/appdata/Deemix-1:/deemix-config:rw
 ```
 
-### Lyrics are missing
+---
+
+### FLAC Was Requested but MP3 Was Downloaded
+
+This can happen when FLAC is unavailable and Deemix bitrate fallback is used.
+
+Look for a log line like:
+
+```text
+Desired bitrate not found, falling back to lower bitrate
+```
+
+Current behavior allows fallback so the album can still complete.
+
+A future improvement may make this behavior configurable.
+
+---
+
+### Lyrics Are Missing
 
 Check the Deemix Direct log:
 
@@ -835,7 +987,9 @@ DEEMIX_DIRECT :: Running LRC fallback root: /downloads-ama/temp
 DEEMIX_DIRECT :: Running LRC fallback album ID: ALBUM_ID
 ```
 
-### Temp folder is not flattened
+---
+
+### Temp Folder Is Not Flattened
 
 After a direct test, this should show files directly in `/downloads-ama/temp`:
 
@@ -859,13 +1013,15 @@ grep -nE "Flattening|Moved media|Temp audio count|Temp LRC count|ERROR" /config/
 '
 ```
 
-### Albums show as already downloaded after deleting files
+---
 
-AMA and Deemix can both keep cache/queue state.
+### Albums Show as Already Downloaded After Deleting Files
+
+AMA and Deemix can both keep cache or queue state.
 
 For a clean redownload, clear the affected artist or album from the relevant locations:
 
-```text
+```bash
 /config/cache
 /config/list
 /downloads-ama/Artist/Album
@@ -874,16 +1030,18 @@ For a clean redownload, clear the affected artist or album from the relevant loc
 
 If using legacy external Deemix API mode, also clear:
 
-```text
+```bash
 /deemix-config/queue
 /deemix-downloads
 ```
 
-### Tags show featured artists as primary artists
+---
+
+### Tags Show Featured Artists as Primary Artists
 
 Confirm:
 
-```text
+```bash
 ENABLE_ARTIST_TAG_CLEANUP=true
 ```
 
@@ -895,7 +1053,9 @@ ARTIST=Album Artist
 ALBUMARTIST=Album Artist
 ```
 
-### Plex does not update after tags are fixed
+---
+
+### Plex Does Not Update After Tags Are Fixed
 
 Refresh metadata in Plex for the affected artist or album after files are retagged.
 
@@ -905,7 +1065,9 @@ Plex Artist Page → three dots → Refresh Metadata
 
 For stubborn cases, empty trash and rescan the music library.
 
-### Roon does not update after tags are fixed
+---
+
+### Roon Does Not Update After Tags Are Fixed
 
 Force a rescan in Roon.
 
@@ -915,32 +1077,208 @@ Settings → Storage → three dots on the music folder → Force Rescan
 
 For stubborn albums, remove and re-add the album or adjust Roon's album edit settings to prefer file metadata.
 
-### Permission issues
+---
+
+### Permission Issues
 
 Check:
 
-```text
+```bash
 PUID=99
 PGID=100
 FILE_PERMISSIONS=777
 FOLDER_PERMISSIONS=777
 ```
 
-Also confirm your `/downloads-ama` mapping is Read/Write.
+Also confirm your `/downloads-ama` mapping is read/write.
+
+---
+
+## Development Notes
+
+Useful repo path on Unraid:
+
+```bash
+/mnt/cache/appdata/ama-unraid
+```
+
+Example:
+
+```bash
+cd /mnt/cache/appdata/ama-unraid
+git status --short
+```
+
+Useful validation commands:
+
+```bash
+bash -n root/scripts/deemix_direct_download.bash
+python3 -m py_compile root/scripts/artist_tag_cleanup.py
+```
+
+Recommended `.gitignore` entries:
+
+```gitignore
+__pycache__/
+*.pyc
+*.bak-*
+```
+
+---
+
+## Recent Improvements
+
+### High-Quality Deemix Album Art
+
+Added high-quality Deemix album artwork settings:
+
+```python
+config["embeddedArtworkSize"] = 1400
+config["localArtworkSize"] = 1400
+config["jpegImageQuality"] = 100
+config["embeddedArtworkPNG"] = False
+config["tags"]["cover"] = True
+```
+
+Commit:
+
+```text
+0421acb Embed high quality Deemix album art
+```
+
+---
+
+### Deemix Bitrate Fallback
+
+Enabled Deemix bitrate fallback:
+
+```python
+config["fallbackBitrate"] = True
+```
+
+This allows Deemix to fall back to a lower available bitrate when the desired quality is unavailable.
+
+---
+
+### Artist Cleanup for Fallback Audio Formats
+
+Updated artist cleanup so it is no longer FLAC-only.
+
+Supported cleanup formats:
+
+```text
+.flac
+.mp3
+.m4a
+.opus
+```
+
+The cleanup script uses Mutagen’s generic loader so fallback formats can still be processed after download.
+
+Commit:
+
+```text
+c2e0a61 Fix artist cleanup for fallback audio formats
+```
+
+---
+
+## Planned Improvements
+
+These improvements are planned but may not be implemented yet.
+
+### Configurable Bitrate Fallback
+
+Planned variable:
+
+```bash
+DEEMIX_FALLBACK_BITRATE=true
+```
+
+Expected behavior:
+
+```bash
+DEEMIX_FALLBACK_BITRATE=true
+```
+
+Fallback enabled.
+
+```bash
+DEEMIX_FALLBACK_BITRATE=false
+```
+
+Fallback disabled.
+
+Default should remain enabled so current behavior does not change.
+
+---
+
+### Bitrate Fallback Logging
+
+Planned log example:
+
+```text
+DEEMIX_DIRECT :: fallbackBitrate=True
+```
+
+Or:
+
+```text
+DEEMIX_DIRECT :: fallbackBitrate=False
+```
+
+---
+
+### Requested vs Actual Format Summary
+
+Planned summary example:
+
+```text
+DEEMIX_DIRECT :: requested=flac actual_summary flac=0 mp3=1 m4a=0 opus=0
+```
+
+If fallback is used, the script should log a warning.
+
+Example:
+
+```text
+DEEMIX_DIRECT :: WARNING fallback format used because requested FLAC was unavailable
+```
+
+---
+
+### Artist Cleanup Extension Summary
+
+Planned cleanup summary example:
+
+```text
+ARTIST_CLEANUP :: processed=1 flac=0 mp3=1 m4a=0 opus=0
+```
+
+---
+
+### Respect Strict Quality Requirements
+
+If strict quality is enabled later, bitrate fallback should probably be disabled or treated as a failure condition.
+
+Expected behavior:
+
+* If strict quality is disabled, fallback can be allowed.
+* If strict quality is enabled, fallback should either be disabled or the download should fail when the requested quality is unavailable.
 
 ---
 
 ## Related Projects
 
-| Project                    | Link                                           |
-| -------------------------- | ---------------------------------------------- |
-| AMA-Unraid maintained fork | https://github.com/crywolf203/ama-unraid       |
-| Unraid template repo       | https://github.com/crywolf203/unraid-templates |
-| Revived Deemix project     | https://github.com/bambanah/deemix             |
-| Original AMA creator       | https://github.com/RandomNinjaAtk              |
-| LRCLIB                     | https://lrclib.net                             |
-| Plex                       | https://www.plex.tv                            |
-| Roon                       | https://roon.app                               |
+| Project                    | Link                                             |
+| -------------------------- | ------------------------------------------------ |
+| AMA-Unraid maintained fork | `https://github.com/crywolf203/ama-unraid`       |
+| Unraid template repo       | `https://github.com/crywolf203/unraid-templates` |
+| Revived Deemix project     | `https://github.com/bambanah/deemix`             |
+| Original AMA creator       | `https://github.com/RandomNinjaAtk`              |
+| LRCLIB                     | `https://lrclib.net`                             |
+| Plex                       | `https://www.plex.tv`                            |
+| Roon                       | `https://roon.app`                               |
 
 ---
 
@@ -950,7 +1288,7 @@ AMA-Unraid builds on the work of several open-source projects and maintainers.
 
 ### Original AMA Project
 
-AMA, Automated Music Archiver, was originally created by **RandomNinjaAtk**.
+AMA, Automated Music Archiver, was originally created by RandomNinjaAtk.
 
 * Original AMA script/project: `RandomNinjaAtk/ama`
 * Original Docker-based AMA project: `RandomNinjaAtk/docker-ama`
@@ -960,9 +1298,9 @@ This maintained AMA-Unraid fork continues the original goal of automatically arc
 
 ### AMA-Unraid Maintained Fork
 
-This fork is maintained by **crywolf203**.
+This fork is maintained by crywolf203.
 
-AMA-Unraid 2.0 adds Deemix Direct, the safe direct-temp download flow, timed LRC fallback handling, safer Plex/Roon metadata cleanup, ReplayGain support, Plex scan path overrides, and updated Unraid template support.
+AMA-Unraid 2.0 adds Deemix Direct, the safe direct-temp download flow, timed LRC fallback handling, safer Plex/Roon metadata cleanup, ReplayGain support, Plex scan path overrides, high-quality album artwork handling, fallback audio format cleanup, and updated Unraid template support.
 
 ### Deemix
 
@@ -972,7 +1310,7 @@ The Deemix Direct mode uses the revived Deemix project maintained at:
 https://github.com/bambanah/deemix
 ```
 
-The revived Deemix project is maintained by **bambanah** and credits the original Deemix project as being created by **RemixDev**.
+The revived Deemix project is maintained by bambanah and credits the original Deemix project as being created by RemixDev.
 
 The Deemix project provides the pieces used by the direct workflow, including:
 
@@ -985,11 +1323,11 @@ The Deemix project provides the pieces used by the direct workflow, including:
 
 Special thanks to:
 
-* **RandomNinjaAtk** for the original AMA project
-* **crywolf203** for maintaining and extending AMA-Unraid
-* **bambanah** for the revived Deemix project
-* **RemixDev** for the original Deemix project
-* **Bockiii** for Deemix Docker inspiration
+* RandomNinjaAtk for the original AMA project
+* crywolf203 for maintaining and extending AMA-Unraid
+* bambanah for the revived Deemix project
+* RemixDev for the original Deemix project
+* Bockiii for Deemix Docker inspiration
 
 ---
 
@@ -1000,12 +1338,6 @@ This project is a community-maintained Unraid fork and integration wrapper aroun
 If you find the upstream projects useful, consider supporting the original developers and maintainers first.
 
 If this Unraid-focused fork, template work, documentation, or troubleshooting saves you time, you can support this maintenance work here:
-
-<p align="center">
-  <a href="https://buymeacoffee.com/crywolf203">
-    <img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge">
-  </a>
-</p>
 
 ```text
 https://buymeacoffee.com/crywolf203
