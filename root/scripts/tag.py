@@ -41,13 +41,27 @@ parser.add_argument('--mbrainzalbumid', type=str, help='A required integer posit
 args = parser.parse_args()
 
 filename = args.file
-bpm = int(args.songbpm)
-rtng = int(args.songlyricrating)
-trackn = int(args.songtracknumber)
-trackt = int(args.songtracktotal)
-discn = int(args.songdiscnumber)
-disct = int(args.songdisctotal)
-compilation = int(args.songcompilation)
+
+def safe_int(value, default=0):
+    try:
+        if value is None:
+            return default
+        value = str(value).strip()
+        if not value or value.lower() == "null":
+            return default
+        if "/" in value:
+            value = value.split("/", 1)[0]
+        return int(float(value))
+    except Exception:
+        return default
+
+bpm = safe_int(args.songbpm)
+rtng = safe_int(args.songlyricrating)
+trackn = safe_int(args.songtracknumber)
+trackt = safe_int(args.songtracktotal)
+discn = safe_int(args.songdiscnumber)
+disct = safe_int(args.songdisctotal)
+compilation = safe_int(args.songcompilation)
 copyrightext = args.songcopyright
 title = args.songtitle
 album = args.songalbum
@@ -115,10 +129,11 @@ if ( compilation == 1 ):
    audio["cpil"] = [compilation]
 audio["stik"] = [1]
 audio["\xa9cmt"] = [comment]
-with open(picture, "rb") as f:
-    audio["covr"] = [
-        MP4Cover(f.read(), MP4Cover.FORMAT_JPEG)
-    ]
+if picture and os.path.isfile(picture):
+    with open(picture, "rb") as f:
+        audio["covr"] = [
+            MP4Cover(f.read(), MP4Cover.FORMAT_JPEG)
+        ]
 #audio["\xa9lyr"] = [syncedlyrics]
 audio.pprint()
 audio.save()

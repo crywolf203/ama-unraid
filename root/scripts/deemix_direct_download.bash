@@ -122,7 +122,7 @@ PY
 FORMAT_UPPER="$(printf '%s' "${FORMAT:-FLAC}" | tr '[:lower:]' '[:upper:]')"
 
 case "$FORMAT_UPPER" in
-  FLAC|LOSSLESS)
+  FLAC|LOSSLESS|ALAC|AAC|OPUS)
     CLI_BITRATE="flac"
     ;;
   MP3|MP3_320|320)

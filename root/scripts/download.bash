@@ -28,6 +28,17 @@ RunTagNormalizer () {
 }
 
 
+SetAacOptions () {
+	if ffmpeg -hide_banner -encoders 2>/dev/null | grep -qE '(^|[[:space:]])libfdk_aac([[:space:]]|$)'; then
+		options="-c:a libfdk_aac -b:a ${BITRATE}k -movflags faststart"
+		aac_encoder="libfdk_aac"
+	else
+		options="-c:a aac -b:a ${BITRATE}k -movflags faststart"
+		aac_encoder="aac"
+	fi
+}
+
+
 PlexScanPath () {
 	_ama_path="$1"
 	_plex_root="${PLEXSCANPATH:-}"
@@ -259,9 +270,10 @@ Configuration () {
 			log "$TITLESHORT: Download File Bitrate: $BITRATE"
 		elif [ "$FORMAT" = "AAC" ]; then
 			quality="FLAC"
-			options="-c:a libfdk_aac -b:a ${BITRATE}k -movflags faststart"
+			SetAacOptions
 			extension="m4a"
 			log "$TITLESHORT: Download File Bitrate: $BITRATE"
+			log "$TITLESHORT: AAC Encoder: $aac_encoder"
 		elif [ "$FORMAT" = "MP3" ]; then
 			if [ "$BITRATE" = "320" ]; then
 				quality="320"
@@ -997,7 +1009,7 @@ FlacConvert () {
 		if [ "$songcomposer" = "null" ]; then
 			songcomposer=""
 		else
-			songcomposer=${songcomposert//\//, }
+			songcomposer=${songcomposer//\//, }
 		fi
 
 		if [ "$songwriter" = "null" ]; then
@@ -1126,7 +1138,7 @@ MP3Convert () {
 	if [ "$extension" = "m4a" ]; then
 		if [ "${FORMAT}" == "ALAC" ]; then
 			origoptions="$options"
-			options="-c:a libfdk_aac -b:a ${BITRATE}k -movflags faststart"
+			SetAacOptions
 		fi
 		tags="$(ffprobe -v quiet -print_format json -show_format "$fname" | jq -r '.[] | .tags')"
 		filelrc="${fname%.mp3}.lrc"
