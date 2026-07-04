@@ -160,6 +160,52 @@ def main():
             print(f"ARTIST_CLEANUP :: ERROR :: {path} :: {exc}")
 
     print(f"ARTIST_CLEANUP :: processed={count}")
+
+# Also clean artist tags for Deemix bitrate-fallback files such as MP3/M4A/OPUS.
+# The original cleanup may only touch FLAC, which leaves fallback MP3s at processed=0.
+if find "${TEMP_DIR:-/downloads-ama/temp}" -maxdepth 1 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.opus" \) -print -quit 2>/dev/null | grep -q .; then
+  python3 - "${TEMP_DIR:-/downloads-ama/temp}" <<'ARTIST_CLEANUP_FALLBACK_PY'
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+exts = {".mp3", ".m4a", ".opus"}
+processed = 0
+
+try:
+    from mutagen import File as MutagenFile
+except Exception as exc:
+    print(f"ARTIST_CLEANUP :: fallback_warn=mutagen unavailable: {exc}")
+    raise SystemExit(0)
+
+for audio in sorted(p for p in root.iterdir() if p.is_file() and p.suffix.lower() in exts):
+    try:
+        tags = MutagenFile(audio, easy=True)
+        if tags is None:
+            print(f"ARTIST_CLEANUP :: {audio.name} :: SKIP no tag handler")
+            continue
+
+        artist_vals = tags.get("artist", [])
+        albumartist_vals = tags.get("albumartist", [])
+        artist = artist_vals[0].strip() if artist_vals and artist_vals[0] else ""
+
+        # Preserve Deemix's artist tag, but ensure fallback files are saved
+        # through Mutagen and have albumartist when possible.
+        if artist:
+            tags["artist"] = [artist]
+            if not albumartist_vals:
+                tags["albumartist"] = [artist]
+
+        tags.save()
+        processed += 1
+        print(f"ARTIST_CLEANUP :: {audio.name} :: ARTIST={artist or '<missing>'}")
+    except Exception as exc:
+        print(f"ARTIST_CLEANUP :: {audio.name} :: WARN {exc}")
+
+print(f"ARTIST_CLEANUP :: fallback_processed={processed}")
+ARTIST_CLEANUP_FALLBACK_PY
+fi
+
     return 0
 
 if __name__ == "__main__":
