@@ -125,6 +125,13 @@ explicit_suffix = " %explicit%" if os.environ.get("AMA_ALBUM_EXPLICIT", "").stri
 config["albumTracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["tracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["createSingleFolder"] = True
+
+# Maximize native Deemix lyric capture before AMA/LRCLIB fallback runs.
+config["syncedLyrics"] = True
+if "tags" not in config or not isinstance(config["tags"], dict):
+    config["tags"] = {}
+config["tags"]["lyrics"] = True
+config["tags"]["syncedLyrics"] = True
 config["queueConcurrency"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 config["concurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 config["maxConcurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
@@ -136,6 +143,9 @@ print(f"DEEMIX_DIRECT :: albumTracknameTemplate={config['albumTracknameTemplate'
 print(f"DEEMIX_DIRECT :: tracknameTemplate={config['tracknameTemplate']}")
 print(f"DEEMIX_DIRECT :: albumExplicitEnv={os.environ.get('AMA_ALBUM_EXPLICIT', '').strip().lower() or '<unset>'}")
 print(f"DEEMIX_DIRECT :: nativeExplicitFilenameSuffix={'enabled' if explicit_suffix else 'disabled'}")
+print(f"DEEMIX_DIRECT :: syncedLyrics={config.get('syncedLyrics')}")
+print(f"DEEMIX_DIRECT :: tags.lyrics={config.get('tags', {}).get('lyrics')}")
+print(f"DEEMIX_DIRECT :: tags.syncedLyrics={config.get('tags', {}).get('syncedLyrics')}")
 print(f"DEEMIX_DIRECT :: createSingleFolder={config['createSingleFolder']}")
 print(f"DEEMIX_DIRECT :: queueConcurrency={config['queueConcurrency']}")
 PY
