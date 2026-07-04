@@ -132,6 +132,14 @@ if "tags" not in config or not isinstance(config["tags"], dict):
     config["tags"] = {}
 config["tags"]["lyrics"] = True
 config["tags"]["syncedLyrics"] = True
+
+# Maximize Deemix album art quality for embedded FLAC artwork and cover.jpg.
+config["embeddedArtworkSize"] = int(os.environ.get("DEEMIX_EMBEDDED_ARTWORK_SIZE", "1400"))
+config["localArtworkSize"] = int(os.environ.get("DEEMIX_LOCAL_ARTWORK_SIZE", "1400"))
+config["jpegImageQuality"] = int(os.environ.get("DEEMIX_JPEG_IMAGE_QUALITY", os.environ.get("EMBEDDED_COVER_QUALITY", "100")))
+config["embeddedArtworkPNG"] = False
+config["tags"]["cover"] = True
+
 config["queueConcurrency"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 config["concurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 config["maxConcurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
@@ -146,6 +154,11 @@ print(f"DEEMIX_DIRECT :: nativeExplicitFilenameSuffix={'enabled' if explicit_suf
 print(f"DEEMIX_DIRECT :: syncedLyrics={config.get('syncedLyrics')}")
 print(f"DEEMIX_DIRECT :: tags.lyrics={config.get('tags', {}).get('lyrics')}")
 print(f"DEEMIX_DIRECT :: tags.syncedLyrics={config.get('tags', {}).get('syncedLyrics')}")
+print(f"DEEMIX_DIRECT :: embeddedArtworkSize={config.get('embeddedArtworkSize')}")
+print(f"DEEMIX_DIRECT :: localArtworkSize={config.get('localArtworkSize')}")
+print(f"DEEMIX_DIRECT :: jpegImageQuality={config.get('jpegImageQuality')}")
+print(f"DEEMIX_DIRECT :: embeddedArtworkPNG={config.get('embeddedArtworkPNG')}")
+print(f"DEEMIX_DIRECT :: tags.cover={config.get('tags', {}).get('cover')}")
 print(f"DEEMIX_DIRECT :: createSingleFolder={config['createSingleFolder']}")
 print(f"DEEMIX_DIRECT :: queueConcurrency={config['queueConcurrency']}")
 PY
