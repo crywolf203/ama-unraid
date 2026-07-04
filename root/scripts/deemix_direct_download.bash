@@ -144,6 +144,7 @@ config["queueConcurrency"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1")
 config["concurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 config["maxConcurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 
+config["fallbackBitrate"] = True
 config_path.write_text(json.dumps(config, indent=2))
 
 print(f"DEEMIX_DIRECT :: Wrote Deemix config: {config_path}")
