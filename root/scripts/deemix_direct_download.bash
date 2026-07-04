@@ -71,8 +71,7 @@ normalize_explicit_filenames() {
     return
   fi
 
-  log "DEEMIX_DIRECT :: Normalizing explicit filename labels"
-
+  
   ALBUM_FOLDER="$album_folder" ALBUM_ID="$album_id" python3 - <<'PY'
 import json
 import os
@@ -219,8 +218,9 @@ if config_path.exists():
 temp_dir = "/downloads-ama/temp"
 
 config["downloadLocation"] = temp_dir
-config["albumTracknameTemplate"] = "%discnumber%%tracknumber% - %title%"
-config["tracknameTemplate"] = "%discnumber%%tracknumber% - %title%"
+explicit_suffix = " %explicit%" if os.environ.get("AMA_ALBUM_EXPLICIT", "").strip().lower() == "true" else ""
+config["albumTracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
+config["tracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["createSingleFolder"] = True
 config["queueConcurrency"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 config["concurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
@@ -294,8 +294,6 @@ if [ -n "${ALBUM_ID:-}" ] && [[ "$ALBUM_FOLDER" != *"[$ALBUM_ID]" ]]; then
   mv "$ALBUM_FOLDER" "$ALBUM_FOLDER_WITH_ID"
   ALBUM_FOLDER="$ALBUM_FOLDER_WITH_ID"
 fi
-
-normalize_explicit_filenames "$ALBUM_FOLDER" "$ALBUM_ID"
 
 log "DEEMIX_DIRECT :: Running LRC fallback root: $TEMP_DIR"
 log "DEEMIX_DIRECT :: Running LRC fallback album ID: $ALBUM_ID"

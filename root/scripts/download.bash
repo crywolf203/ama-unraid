@@ -396,11 +396,11 @@ Configuration () {
 
 DownloadAlbumWithClient () {
 	_album_url="$1"
-
+	_album_explicit="${2:-${albumexplicit:-}}"
 	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
 		bash /config/scripts/deemix_api_download.bash "$_album_url"
 	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
-		bash /config/scripts/deemix_direct_download.bash "$_album_url"
+		AMA_ALBUM_EXPLICIT="${_album_explicit:-}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
 	else
 		python3 /config/scripts/dlclient.py "$_album_url"
 	fi
@@ -753,7 +753,7 @@ ProcessArtist () {
 		if [ "" = "deemix_api" ]; then
 			bash /config/scripts/deemix_api_download.bash ""
 		else
-			DownloadAlbumWithClient "$deezeralbumurl"
+			DownloadAlbumWithClient "$deezeralbumurl" "$albumexplicit"
 		fi
 		rm -rf /tmp/deemix-imgs/*
 		if find /downloads-ama/temp -iregex ".*/.*\.\(flac\|mp3\)" | read; then
