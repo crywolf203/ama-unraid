@@ -112,13 +112,13 @@ Use this container only with accounts, content, and services you are authorized 
 Latest image:
 
 ```bash
-ghcr.io/crywolf203/ama-unraid:2.5.1latest
+ghcr.io/crywolf203/ama-unraid:2.5.2latest
 ```
 
 Versioned image example:
 
 ```bash
-ghcr.io/crywolf203/ama-unraid:2.5.1
+ghcr.io/crywolf203/ama-unraid:2.5.2
 ```
 
 Unraid template repository:
@@ -130,7 +130,7 @@ https://github.com/crywolf203/unraid-templates
 The Unraid template keeps these update-tracking fields in place:
 
 ```xml
-<Repository>ghcr.io/crywolf203/ama-unraid:2.5.1latest</Repository>
+<Repository>ghcr.io/crywolf203/ama-unraid:2.5.2latest</Repository>
 <Registry>https://github.com/crywolf203/ama-unraid/pkgs/container/ama-unraid</Registry>
 <TemplateURL>https://raw.githubusercontent.com/crywolf203/unraid-templates/main/templates/ama-unraid.xml</TemplateURL>
 <Project>https://github.com/crywolf203/ama-unraid</Project>
@@ -554,8 +554,8 @@ Example:
 
 ```yaml
 services:
-  ama-unraid:2.5.1
-    image: ghcr.io/crywolf203/ama-unraid:2.5.1latest
+  ama-unraid:2.5.2
+    image: ghcr.io/crywolf203/ama-unraid:2.5.2latest
     container_name: AMA-Unraid
     restart: unless-stopped
     network_mode: bridge
@@ -585,7 +585,7 @@ services:
       FILE_PERMISSIONS: "777"
       FOLDER_PERMISSIONS: "777"
     volumes:
-      - /mnt/cache/appdata/ama-unraid:2.5.1/config:rw
+      - /mnt/cache/appdata/ama-unraid:2.5.2/config:rw
       - /mnt/user/media/music:/downloads-ama:rw
 ```
 
@@ -628,9 +628,9 @@ docker run -d \
   -e LIDARR_LIST_IMPORT="false" \
   -e FILE_PERMISSIONS="777" \
   -e FOLDER_PERMISSIONS="777" \
-  -v /mnt/cache/appdata/ama-unraid:2.5.1/config:rw \
+  -v /mnt/cache/appdata/ama-unraid:2.5.2/config:rw \
   -v /mnt/user/media/music:/downloads-ama:rw \
-  ghcr.io/crywolf203/ama-unraid:2.5.1latest
+  ghcr.io/crywolf203/ama-unraid:2.5.2latest
 ```
 
 ---
