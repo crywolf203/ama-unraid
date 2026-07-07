@@ -94,7 +94,7 @@ Configuration () {
 	log ""
 	sleep 2
 	log "######################### $TITLE"
-	log "######################### SCRIPT VERSION 2.0.0"
+	log "######################### SCRIPT VERSION 2.5.0"
 	log "######################### DOCKER VERSION $VERSION"
 	log "######################### CONFIGURATION VERIFICATION"
 	error=0
@@ -135,9 +135,25 @@ Configuration () {
 
 	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
 		log "AMA: Download Client: Deemix API"
+		if [ "${DOWNLOAD_CLIENT:-${DOWNLOADCLIENT:-}}" = "deemix_direct" ] || [ "${DOWNLOADCLIENT:-}" = "deemix_direct" ]; then
+			log "$TITLESHORT: Deemix Direct Fallback Bitrate: ${DEEMIX_FALLBACK_BITRATE:-true}"
+			log "$TITLESHORT: Deemix Direct Embedded Artwork Size: ${DEEMIX_EMBEDDED_ARTWORK_SIZE:-1400}"
+			log "$TITLESHORT: Deemix Direct Local Artwork Size: ${DEEMIX_LOCAL_ARTWORK_SIZE:-1400}"
+			log "$TITLESHORT: Deemix Direct JPEG Artwork Quality: ${DEEMIX_JPEG_IMAGE_QUALITY:-${EMBEDDED_COVER_QUALITY:-100}}"
+			log "$TITLESHORT: Deemix Direct Temp-Root Single Handling: ENABLED"
+			log "$TITLESHORT: LRC Fallback: ENABLED"
+		fi
 		log "AMA: ARL_TOKEN: SKIPPED (using Deemix API login.json)"
 	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
 		log "AMA: Download Client: Deemix Direct Internal"
+		if [ "${DOWNLOAD_CLIENT:-${DOWNLOADCLIENT:-}}" = "deemix_direct" ] || [ "${DOWNLOADCLIENT:-}" = "deemix_direct" ]; then
+			log "$TITLESHORT: Deemix Direct Fallback Bitrate: ${DEEMIX_FALLBACK_BITRATE:-true}"
+			log "$TITLESHORT: Deemix Direct Embedded Artwork Size: ${DEEMIX_EMBEDDED_ARTWORK_SIZE:-1400}"
+			log "$TITLESHORT: Deemix Direct Local Artwork Size: ${DEEMIX_LOCAL_ARTWORK_SIZE:-1400}"
+			log "$TITLESHORT: Deemix Direct JPEG Artwork Quality: ${DEEMIX_JPEG_IMAGE_QUALITY:-${EMBEDDED_COVER_QUALITY:-100}}"
+			log "$TITLESHORT: Deemix Direct Temp-Root Single Handling: ENABLED"
+			log "$TITLESHORT: LRC Fallback: ENABLED"
+		fi
 		if [ ! -z "${ARL_TOKEN:-}" ]; then
 			log "$TITLESHORT: ARL Token: Configured"
 			mkdir -p "$XDG_CONFIG_HOME/deemix"
@@ -364,13 +380,25 @@ Configuration () {
 
 	if [ "$NOTIFYPLEX" == "true" ]; then
 		log "$TITLESHORT: Plex Library Notification: ENABLED"
+		if [ ! -z "${PLEXURL:-}" ]; then
+			log "$TITLESHORT: Plex URL: Configured"
+		else
+			log "$TITLESHORT: Plex URL: Missing"
+		fi
+		log "$TITLESHORT: Plex Library Name: ${PLEXLIBRARYNAME:-Music}"
 		if [ ! -z "${PLEXSCANPATH:-}" ]; then
-			log "$TITLESHORT: Plex Scan Path Override: $PLEXSCANPATH"
+			log "$TITLESHORT: Plex Scan Path Override: ENABLED"
+			log "$TITLESHORT: Plex Scan Path Override Value: $PLEXSCANPATH"
+			log "$TITLESHORT: Plex Effective Scan Root: $PLEXSCANPATH"
+			log "$TITLESHORT: Plex Scan Mode: Translated Plex container path"
 		else
 			log "$TITLESHORT: Plex Scan Path Override: DISABLED"
+			log "$TITLESHORT: Plex Effective Scan Root: ${LIBRARY:-/downloads-ama}"
+			log "$TITLESHORT: Plex Scan Mode: Direct AMA library path"
 		fi
+                plex_check_path="${PLEXSCANPATH:-${LIBRARY:-/downloads-ama}}"
 		plexlibraries="$(curl -s "$PLEXURL/library/sections?X-Plex-Token=$PLEXTOKEN" | xq .)"
-		if echo "$plexlibraries" | grep "/downloads-ama" | read; then
+		if echo "$plexlibraries" | grep -F "$plex_check_path" | read; then
 			plexlibrarykey="$(echo "$plexlibraries" | jq -r ".MediaContainer.Directory[] | select(.\"@title\"==\"$PLEXLIBRARYNAME\") | .\"@key\"" | head -n 1)"
 			if [ -z "$plexlibrarykey" ]; then
 				log "ERROR: No Plex Library found named \"$PLEXLIBRARYNAME\""
