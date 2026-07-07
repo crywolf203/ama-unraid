@@ -216,7 +216,21 @@ log "DEEMIX_DIRECT :: Album folder before LRC ID check: $ALBUM_FOLDER"
 
 # lrc_fallback.py expects a downloads root plus album_id.
 # Make sure the downloaded album folder includes the album ID before running fallback.
-if [ -n "${ALBUM_ID:-}" ] && [[ "$ALBUM_FOLDER" != *"[$ALBUM_ID]" ]]; then
+if [ -n "${ALBUM_ID:-}" ] && [ "$ALBUM_FOLDER" = "$TEMP_DIR" ]; then
+  ALBUM_FOLDER_WITH_ID="$TEMP_DIR/album [$ALBUM_ID]"
+  log "DEEMIX_DIRECT :: Temp-root single handling active"
+  log "DEEMIX_DIRECT :: Temp-root single detected; creating album folder for LRC fallback: $ALBUM_FOLDER_WITH_ID"
+  rm -rf "$ALBUM_FOLDER_WITH_ID"
+  mkdir -p "$ALBUM_FOLDER_WITH_ID"
+
+  for ENTRY in "$TEMP_DIR"/*; do
+    [ -e "$ENTRY" ] || continue
+    [ "$ENTRY" = "$ALBUM_FOLDER_WITH_ID" ] && continue
+    mv "$ENTRY" "$ALBUM_FOLDER_WITH_ID"/
+  done
+
+  ALBUM_FOLDER="$ALBUM_FOLDER_WITH_ID"
+elif [ -n "${ALBUM_ID:-}" ] && [[ "$ALBUM_FOLDER" != *"[$ALBUM_ID]" ]]; then
   ALBUM_FOLDER_WITH_ID="${ALBUM_FOLDER} [$ALBUM_ID]"
   log "DEEMIX_DIRECT :: Adding album ID to folder for LRC fallback: $ALBUM_FOLDER_WITH_ID"
   rm -rf "$ALBUM_FOLDER_WITH_ID"
