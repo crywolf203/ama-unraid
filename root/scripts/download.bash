@@ -577,7 +577,19 @@ ProcessArtistList () {
 		logheaderstart="$logheader"
 		log "$logheader :: Processing..."
 		ArtistAlbumList
-		albumlistdata=$(jq -s '.' /config/cache/artists/$artistid/albums/*.json)
+		current_album_files=()
+                for current_album_id in "${albumids[@]}"; do
+                        current_album_json="/config/cache/artists/$artistid/albums/${current_album_id}.json"
+                        if [ -f "$current_album_json" ]; then
+                                current_album_files+=("$current_album_json")
+                        fi
+                done
+
+                if [ "${#current_album_files[@]}" -gt 0 ]; then
+                        albumlistdata=$(jq -s '.' "${current_album_files[@]}")
+                else
+                        albumlistdata='[]'
+                fi
 		artistalbumcount=$(echo "$albumlistdata" | jq -r ".[] | select(.artist.id==$artistid) | .id" | wc -l)
 		artistcontributedalbumcount=$(echo "$albumlistdata" | jq -r ".[] | select(.contributors[].id==$artistid) | .id" | wc -l)
 		artistdiscographyalbumcount=$(echo "$albumlistdata" | jq -r ".[] | select(.artist.id!=$artistid) | .id" | wc -l)
