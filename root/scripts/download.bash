@@ -101,7 +101,7 @@ Configuration () {
 	log ""
 	sleep 2
 	log "######################### $TITLE"
-	log "######################### SCRIPT VERSION 2.5.2"
+	log "######################### SCRIPT VERSION 2.6.0"
 	log "######################### DOCKER VERSION $VERSION"
 	log "######################### CONFIGURATION VERIFICATION"
 	error=0
