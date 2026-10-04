@@ -38,6 +38,7 @@ jobs:
 
           grep -q "ENV VERSION=\"$VERSION\"" Dockerfile
           grep -q "SCRIPT VERSION $VERSION" root/scripts/download.bash
+          grep -q "ghcr.io/crywolf203/ama-unraid:$VERSION" README.md
 
           if [ -f scripts/download.bash ]; then
             grep -q "SCRIPT VERSION $VERSION" scripts/download.bash
