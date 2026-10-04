@@ -69,6 +69,13 @@ PlexScanPath () {
 
 
 export XDG_CONFIG_HOME="/config/deemix/xdg"
+DOWNLOAD_CLIENT="${DOWNLOAD_CLIENT:-${DOWNLOADCLIENT:-deemix_direct}}"
+LEGACY_DOWNLOAD_CLIENT=""
+if [ "$DOWNLOAD_CLIENT" = "python" ]; then
+    LEGACY_DOWNLOAD_CLIENT="python"
+    DOWNLOAD_CLIENT="deemix_direct"
+fi
+export DOWNLOAD_CLIENT
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 agent="automated-music-archiver ( https://github.com/RandomNinjaAtk/docker-ama )"
@@ -122,23 +129,44 @@ Configuration () {
 		MODE="artist"
 	fi
 
-	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
-		log "AMA: Download Client: Deemix API"
-		log "AMA: ARL_TOKEN: SKIPPED (using Deemix API login.json)"
-	else
-	if [ ! -z "$ARL_TOKEN" ]; then
-		log "$TITLESHORT: ARL Token: Configured"
-		if [ -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
-			rm "$XDG_CONFIG_HOME/deemix/.arl"
-		fi
-		 if [ ! -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
-			echo -n "$ARL_TOKEN" > "$XDG_CONFIG_HOME/deemix/.arl"
-		fi
-	else
-		log "ERROR: ARL_TOKEN setting invalid, currently set to: $ARL_TOKEN"
-		error=1
-	fi
-	fi
+        if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
+                log "AMA: Download Client: Deemix API"
+                log "AMA: ARL_TOKEN: SKIPPED (using Deemix API login.json)"
+        elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
+                log "AMA: Download Client: Deemix Direct Internal"
+
+                if [ -n "${ARL_TOKEN:-}" ]; then
+                        log "$TITLESHORT: ARL Token: Configured"
+                        mkdir -p /config/deemix/xdg/deemix
+                        echo -n "$ARL_TOKEN" > /config/deemix/xdg/deemix/.arl
+                elif [ -f "${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json" ]; then
+                        log "AMA: ARL_TOKEN: SKIPPED (using ${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json)"
+                elif [ -f "${DEEMIX_CONFIG_PATH:-/deemix-config}/.arl" ]; then
+                        log "AMA: ARL_TOKEN: SKIPPED (using ${DEEMIX_CONFIG_PATH:-/deemix-config}/.arl)"
+                elif [ -f "/config/deemix/bambanah/login.json" ]; then
+                        log "AMA: ARL_TOKEN: SKIPPED (using existing Bambanah login.json)"
+                elif [ -f "/config/deemix/bambanah/.arl" ]; then
+                        log "AMA: ARL_TOKEN: SKIPPED (using existing Bambanah .arl)"
+                elif [ -f "/config/deemix/xdg/deemix/.arl" ]; then
+                        log "AMA: ARL_TOKEN: SKIPPED (legacy AMA .arl will be migrated)"
+                else
+                        log "ERROR: DOWNLOAD_CLIENT=deemix_direct requires a valid Deemix credential"
+                        error=1
+                fi
+        else
+                if [ -n "${ARL_TOKEN:-}" ]; then
+                        log "$TITLESHORT: ARL Token: Configured"
+                        if [ -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
+                                rm "$XDG_CONFIG_HOME/deemix/.arl"
+                        fi
+                        if [ ! -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
+                                echo -n "$ARL_TOKEN" > "$XDG_CONFIG_HOME/deemix/.arl"
+                        fi
+                else
+                        log "ERROR: ARL_TOKEN setting invalid, currently set to: ${ARL_TOKEN:-}"
+                        error=1
+                fi
+        fi
 	
 	if [ ! -z "$ALBUM_TYPE_FILTER" ]; then
 		ALBUM_FILTER=true
@@ -152,22 +180,18 @@ Configuration () {
 
 	if [ ! -z "$CONCURRENT_DOWNLOADS" ]; then
 		log "$TITLESHORT: Concurrent Downloads: $CONCURRENT_DOWNLOADS"
-		sed -i "s%CONCURRENT_DOWNLOADS%$CONCURRENT_DOWNLOADS%g" "/config/scripts/dlclient.py"
 	else
 		CONCURRENT_DOWNLOADS=1
 		log "WARNING: CONCURRENT_DOWNLOADS setting invalid, defaulting to: 1"
 		log "$TITLESHORT: Concurrent Downloads: $CONCURRENT_DOWNLOADS"
-		sed -i "s%CONCURRENT_DOWNLOADS%$CONCURRENT_DOWNLOADS%g" "/config/scripts/dlclient.py"
 	fi
 	
 	if [ ! -z "$EMBEDDED_COVER_QUALITY" ]; then
 		log "$TITLESHORT: Embedded Cover Quality: $EMBEDDED_COVER_QUALITY (%)"
-		sed -i "s%EMBEDDED_COVER_QUALITY%$EMBEDDED_COVER_QUALITY%g" "/config/scripts/dlclient.py"
 	else
 		EMBEDDED_COVER_QUALITY=80
 		log "WARNING: EMBEDDED_COVER_QUALITY setting invalid, defaulting to: 80"
 		log "$TITLESHORT: Embedded Cover Quality: $EMBEDDED_COVER_QUALITY (%)"
-		sed -i "s%EMBEDDED_COVER_QUALITY%$EMBEDDED_COVER_QUALITY%g" "/config/scripts/dlclient.py"
 	fi
 	
 	if [ -z "$REQUIRE_QUALITY" ]; then
@@ -368,13 +392,17 @@ Configuration () {
 
 
 DownloadAlbumWithClient () {
-	_album_url="$1"
+        _album_url="$1"
+        _album_explicit="${2:-${albumexplicit:-}}"
 
-	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
-		bash /config/scripts/deemix_api_download.bash "$_album_url"
-	else
-		DownloadAlbumWithClient "$deezeralbumurl"
-	fi
+        if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
+                bash /config/scripts/deemix_api_download.bash "$_album_url"
+        elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
+                AMA_ALBUM_EXPLICIT="${_album_explicit:-}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
+        else
+                echo "ERROR: Unsupported DOWNLOAD_CLIENT: ${DOWNLOAD_CLIENT:-<unset>}" >&2
+                return 1
+        fi
 }
 
 AddReplaygainTags () {
