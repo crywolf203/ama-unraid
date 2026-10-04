@@ -11,11 +11,27 @@ echo "To kill script, use the following command:"
 echo "kill -9 $processstartid"
 for (( ; ; )); do
 	let i++
-	if [ -f /config/run_alternate ]; then
-		bash /config/scripts/download_musicbrainz.bash 2>&1 | tee "/config/logs/script_run_${i}_$(date +"%Y_%m_%d_%I_%M_%p").log" > /proc/1/fd/1 2>/proc/1/fd/2
-	else
-		bash /config/scripts/download.bash 2>&1 | tee "/config/logs/script_run_${i}_$(date +"%Y_%m_%d_%I_%M_%p").log" > /proc/1/fd/1 2>/proc/1/fd/2
+	# MusicBrainz is optional. Deezer/Bambanah is the default AMA workflow.
+	# Explicit MUSICBRAINZ_ENABLED overrides the legacy /config/run_alternate marker.
+	if [ -z "${MUSICBRAINZ_ENABLED+x}" ]; then
+		if [ -f /config/run_alternate ]; then
+			MUSICBRAINZ_ENABLED=true
+			echo "WARNING: Legacy /config/run_alternate detected; use MUSICBRAINZ_ENABLED=true instead."
+		else
+			MUSICBRAINZ_ENABLED=false
+		fi
 	fi
+
+	case "$(printf "%s" "$MUSICBRAINZ_ENABLED" | tr "[:upper:]" "[:lower:]")" in
+		true|1|yes|on)
+			echo "MusicBrainz: ENABLED"
+			bash /config/scripts/download_musicbrainz.bash 2>&1 | tee "/config/logs/script_run_${i}_$(date +"%Y_%m_%d_%I_%M_%p").log" > /proc/1/fd/1 2>/proc/1/fd/2
+			;;
+		*)
+			echo "MusicBrainz: DISABLED"
+			bash /config/scripts/download.bash 2>&1 | tee "/config/logs/script_run_${i}_$(date +"%Y_%m_%d_%I_%M_%p").log" > /proc/1/fd/1 2>/proc/1/fd/2
+			;;
+	esac
 	if [ -f "/config/logs/log-cleanup" ]; then
 		rm "/config/logs/log-cleanup"
 	fi

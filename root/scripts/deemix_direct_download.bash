@@ -79,8 +79,10 @@ check_lrc_sidecars() {
 
 TEMP_DIR="/downloads-ama/temp"
 DEEMIX_CONFIG_PATH="${DEEMIX_CONFIG_PATH:-/deemix-config}"
-XDG_CONFIG_HOME="/config/deemix/xdg"
-DEEMIX_XDG_DIR="$XDG_CONFIG_HOME/deemix"
+BAMBANAH_CONFIG_HOME="${BAMBANAH_CONFIG_HOME:-/config/deemix/bambanah}"
+DEEMIX_DATA_DIR="$BAMBANAH_CONFIG_HOME"
+XDG_CONFIG_HOME="$BAMBANAH_CONFIG_HOME"
+DEEMIX_XDG_DIR="$DEEMIX_DATA_DIR"
 DEEMIX_CONFIG_JSON="$DEEMIX_XDG_DIR/config.json"
 
 mkdir -p "$TEMP_DIR" "$DEEMIX_XDG_DIR"
@@ -97,10 +99,26 @@ log "DEEMIX_DIRECT :: Cleaning AMA temp before album"
 find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
 mkdir -p "$TEMP_DIR"
 
-if [ -f "$DEEMIX_CONFIG_PATH/login.json" ]; then
+if [ -n "${ARL_TOKEN:-}" ]; then
+  log "DEEMIX_DIRECT :: Using configured ARL_TOKEN"
+  rm -f "$DEEMIX_XDG_DIR/login.json"
+  printf "%s" "$ARL_TOKEN" > "$DEEMIX_XDG_DIR/.arl"
+elif [ -f "$DEEMIX_CONFIG_PATH/login.json" ]; then
+  log "DEEMIX_DIRECT :: Using Bambanah login.json from $DEEMIX_CONFIG_PATH"
   cp -f "$DEEMIX_CONFIG_PATH/login.json" "$DEEMIX_XDG_DIR/login.json"
+elif [ -f "$DEEMIX_CONFIG_PATH/.arl" ]; then
+  log "DEEMIX_DIRECT :: Using Bambanah .arl from $DEEMIX_CONFIG_PATH"
+  cp -f "$DEEMIX_CONFIG_PATH/.arl" "$DEEMIX_XDG_DIR/.arl"
+elif [ -f "$DEEMIX_XDG_DIR/login.json" ]; then
+  log "DEEMIX_DIRECT :: Using existing Bambanah login.json"
+elif [ -f "$DEEMIX_XDG_DIR/.arl" ]; then
+  log "DEEMIX_DIRECT :: Using existing Bambanah .arl"
+elif [ -f "/config/deemix/xdg/deemix/.arl" ]; then
+  log "DEEMIX_DIRECT :: Migrating legacy AMA .arl into Bambanah config"
+  cp -f "/config/deemix/xdg/deemix/.arl" "$DEEMIX_XDG_DIR/.arl"
 fi
 
+export DEEMIX_DATA_DIR
 export XDG_CONFIG_HOME
 
 python3 - <<'PY'
@@ -108,7 +126,7 @@ import json
 import os
 from pathlib import Path
 
-config_path = Path("/config/deemix/xdg/deemix/config.json")
+config_path = Path(os.environ.get("DEEMIX_DATA_DIR", "/config/deemix/bambanah")) / "config.json"
 config_path.parent.mkdir(parents=True, exist_ok=True)
 
 config = {}
@@ -125,6 +143,7 @@ explicit_suffix = " %explicit%" if os.environ.get("AMA_ALBUM_EXPLICIT", "").stri
 config["albumTracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["tracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["createSingleFolder"] = True
+config["createCDFolder"] = False
 
 # Maximize native Deemix lyric capture before AMA/LRCLIB fallback runs.
 config["syncedLyrics"] = True
@@ -161,6 +180,7 @@ print(f"DEEMIX_DIRECT :: jpegImageQuality={config.get('jpegImageQuality')}")
 print(f"DEEMIX_DIRECT :: embeddedArtworkPNG={config.get('embeddedArtworkPNG')}")
 print(f"DEEMIX_DIRECT :: tags.cover={config.get('tags', {}).get('cover')}")
 print(f"DEEMIX_DIRECT :: createSingleFolder={config['createSingleFolder']}")
+print(f"DEEMIX_DIRECT :: createCDFolder={config['createCDFolder']}")
 print(f"DEEMIX_DIRECT :: queueConcurrency={config['queueConcurrency']}")
 PY
 

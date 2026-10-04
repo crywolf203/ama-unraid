@@ -37,4 +37,4 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/crywolf203/ama-unraid:latest
+            ghcr.io/crywolf203/ama-unraid:${{ github.ref_name == 'master' && 'latest' || github.ref_name }}

@@ -80,6 +80,13 @@ PlexScanPath () {
 
 
 export XDG_CONFIG_HOME="/config/deemix/xdg"
+DOWNLOAD_CLIENT="${DOWNLOAD_CLIENT:-${DOWNLOADCLIENT:-deemix_direct}}"
+LEGACY_DOWNLOAD_CLIENT=""
+if [ "$DOWNLOAD_CLIENT" = "python" ]; then
+    LEGACY_DOWNLOAD_CLIENT="python"
+    DOWNLOAD_CLIENT="deemix_direct"
+fi
+export DOWNLOAD_CLIENT
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 agent="automated-music-archiver ( https://github.com/RandomNinjaAtk/docker-ama )"
@@ -154,17 +161,20 @@ Configuration () {
 			log "$TITLESHORT: Deemix Direct Temp-Root Single Handling: ENABLED"
 			log "$TITLESHORT: LRC Fallback: ENABLED"
 		fi
-		if [ ! -z "${ARL_TOKEN:-}" ]; then
+		if [ -n "${ARL_TOKEN:-}" ]; then
 			log "$TITLESHORT: ARL Token: Configured"
-			mkdir -p "$XDG_CONFIG_HOME/deemix"
-			if [ -f "$XDG_CONFIG_HOME/deemix/.arl" ]; then
-				rm "$XDG_CONFIG_HOME/deemix/.arl"
-			fi
-			echo -n "$ARL_TOKEN" > "$XDG_CONFIG_HOME/deemix/.arl"
 		elif [ -f "${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json" ]; then
 			log "AMA: ARL_TOKEN: SKIPPED (using ${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json)"
+		elif [ -f "${DEEMIX_CONFIG_PATH:-/deemix-config}/.arl" ]; then
+			log "AMA: ARL_TOKEN: SKIPPED (using ${DEEMIX_CONFIG_PATH:-/deemix-config}/.arl)"
+		elif [ -f "/config/deemix/bambanah/login.json" ]; then
+			log "AMA: ARL_TOKEN: SKIPPED (using existing Bambanah login.json)"
+		elif [ -f "/config/deemix/bambanah/.arl" ]; then
+			log "AMA: ARL_TOKEN: SKIPPED (using existing Bambanah .arl)"
+		elif [ -f "/config/deemix/xdg/deemix/.arl" ]; then
+			log "AMA: ARL_TOKEN: SKIPPED (legacy AMA .arl will be migrated)"
 		else
-			log "ERROR: DOWNLOAD_CLIENT=deemix_direct requires ARL_TOKEN or ${DEEMIX_CONFIG_PATH:-/deemix-config}/login.json"
+			log "ERROR: DOWNLOAD_CLIENT=deemix_direct requires a valid Deemix credential"
 			error=1
 		fi
 	else
@@ -194,22 +204,18 @@ Configuration () {
 
 	if [ ! -z "$CONCURRENT_DOWNLOADS" ]; then
 		log "$TITLESHORT: Concurrent Downloads: $CONCURRENT_DOWNLOADS"
-		sed -i "s%CONCURRENT_DOWNLOADS%$CONCURRENT_DOWNLOADS%g" "/config/scripts/dlclient.py"
 	else
 		CONCURRENT_DOWNLOADS=1
 		log "WARNING: CONCURRENT_DOWNLOADS setting invalid, defaulting to: 1"
 		log "$TITLESHORT: Concurrent Downloads: $CONCURRENT_DOWNLOADS"
-		sed -i "s%CONCURRENT_DOWNLOADS%$CONCURRENT_DOWNLOADS%g" "/config/scripts/dlclient.py"
 	fi
 	
 	if [ ! -z "$EMBEDDED_COVER_QUALITY" ]; then
 		log "$TITLESHORT: Embedded Cover Quality: $EMBEDDED_COVER_QUALITY (%)"
-		sed -i "s%EMBEDDED_COVER_QUALITY%$EMBEDDED_COVER_QUALITY%g" "/config/scripts/dlclient.py"
 	else
 		EMBEDDED_COVER_QUALITY=80
 		log "WARNING: EMBEDDED_COVER_QUALITY setting invalid, defaulting to: 80"
 		log "$TITLESHORT: Embedded Cover Quality: $EMBEDDED_COVER_QUALITY (%)"
-		sed -i "s%EMBEDDED_COVER_QUALITY%$EMBEDDED_COVER_QUALITY%g" "/config/scripts/dlclient.py"
 	fi
 	
 	if [ -z "$REQUIRE_QUALITY" ]; then
@@ -430,7 +436,8 @@ DownloadAlbumWithClient () {
 	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
 		AMA_ALBUM_EXPLICIT="${_album_explicit:-}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
 	else
-		python3 /config/scripts/dlclient.py "$_album_url"
+                echo "ERROR: Unsupported DOWNLOAD_CLIENT: ${DOWNLOAD_CLIENT:-<unset>}" >&2
+                return 1
 	fi
 }
 
@@ -570,7 +577,19 @@ ProcessArtistList () {
 		logheaderstart="$logheader"
 		log "$logheader :: Processing..."
 		ArtistAlbumList
-		albumlistdata=$(jq -s '.' /config/cache/artists/$artistid/albums/*.json)
+		current_album_files=()
+                for current_album_id in "${albumids[@]}"; do
+                        current_album_json="/config/cache/artists/$artistid/albums/${current_album_id}.json"
+                        if [ -f "$current_album_json" ]; then
+                                current_album_files+=("$current_album_json")
+                        fi
+                done
+
+                if [ "${#current_album_files[@]}" -gt 0 ]; then
+                        albumlistdata=$(jq -s '.' "${current_album_files[@]}")
+                else
+                        albumlistdata='[]'
+                fi
 		artistalbumcount=$(echo "$albumlistdata" | jq -r ".[] | select(.artist.id==$artistid) | .id" | wc -l)
 		artistcontributedalbumcount=$(echo "$albumlistdata" | jq -r ".[] | select(.contributors[].id==$artistid) | .id" | wc -l)
 		artistdiscographyalbumcount=$(echo "$albumlistdata" | jq -r ".[] | select(.artist.id!=$artistid) | .id" | wc -l)
@@ -830,7 +849,11 @@ ProcessArtist () {
 			albumartistmbzid=""
 		fi
 				
-		Conversion
+		if ! Conversion; then
+			log "$logheader :: CONVERSION :: ERROR :: Album conversion failed, skipping album"
+			rm -rf /downloads-ama/temp/*
+			continue
+		fi
 		AddReplaygainTags
 		
 		if [ ! -f /downloads-ama/temp/temp-folder.jpg ]; then
@@ -912,6 +935,7 @@ FlacConvert () {
 	
 	fname="$1"
 	filename="$(basename "${fname%.flac}")"
+	cover="/downloads-ama/temp/folder.jpg"
 	if [ "$extension" == "m4a" ]; then
 		cover="/downloads-ama/temp/folder.jpg"
 		songtitle="null"
@@ -936,10 +960,10 @@ FlacConvert () {
 	if [ "$extension" == "m4a" ]; then					
 		tags="$(ffprobe -v quiet -print_format json -show_format "$fname" | jq -r '.[] | .tags')"
 		filelrc="${fname%.flac}.lrc"
-		songtitle="$(echo "$tags" | jq -r ".TITLE")"
-		songalbum="$(echo "$tags" | jq -r ".ALBUM")"
-		songartist="$(echo "$tags" | jq -r ".ARTIST")"
-		songartistalbum="$(echo "$tags" | jq -r ".album_artist")"
+		songtitle="$(echo "$tags" | jq -r '.TITLE // .title // empty')"
+		songalbum="$(echo "$tags" | jq -r '.ALBUM // .album // empty')"
+		songartist="$(echo "$tags" | jq -r '.ARTIST // .artist // empty')"
+		songartistalbum="$(echo "$tags" | jq -r '.album_artist // .ALBUMARTIST // .albumartist // empty')"
 		songoriginalbpm="$(echo "$tags" | jq -r ".BPM")"
 		songbpm=${songoriginalbpm%.*}
 		songcopyright="$(echo "$tags" | jq -r ".COPYRIGHT")"
@@ -952,7 +976,7 @@ FlacConvert () {
 		songcompilation="$(echo "$tags" | jq -r ".COMPILATION")"
 		songdate="$(echo "$tags" | jq -r ".DATE")"
 		songyear="${songdate:0:4}"
-		songgenre="$(echo "$tags" | jq -r ".GENRE" | cut -f1 -d";")"
+		songgenre="$(echo "$tags" | jq -r '.GENRE // .genre // empty')"
 		songcomposer="$(echo "$tags" | jq -r ".composer")"
 		songcomment="Source File: FLAC"
 		songisrc="$(echo "$tags" | jq -r ".ISRC")"
@@ -1074,7 +1098,7 @@ FlacConvert () {
 	fi
 	
 	if [ "${FORMAT}" == "OPUS" ]; then
-		if opusenc --bitrate $BITRATE --music "$fname" "${fname%.flac}.temp.$extension"; then
+		if opusenc --bitrate "$BITRATE" --vbr "$fname" "${fname%.flac}.temp.$extension"; then
 			converterror=0
 		else
 			converterror=1
@@ -1088,14 +1112,27 @@ FlacConvert () {
 	fi
 	
 	if [ "$converterror" == "1" ]; then
-		log "$logheader :: CONVERSION :: ERROR :: Coversion Failed: $filename, performing cleanup..."
-		rm "${fname%.flac}.temp.$extension"
-		continue
+		log "$logheader :: CONVERSION :: ERROR :: Conversion Failed: $filename, performing cleanup..."
+		rm -f "${fname%.flac}.temp.$extension"
+		return 1
 	elif [ -f "${fname%.flac}.temp.$extension" ]; then
 		mv "${fname%.flac}.temp.$extension" "${fname%.flac}.$extension"
 		log "$logheader :: CONVERSION :: $filename :: Converted!"
+	else
+		log "$logheader :: CONVERSION :: ERROR :: Expected output missing: $filename"
+		return 1
 	fi
 				
+	if [ "$extension" == "mp3" ] && [ -f "$cover" ]; then
+		log "$logheader :: CONVERSION :: $filename :: Embedding artwork"
+		if python3 /config/scripts/embed_mp3_cover.py "${fname%.flac}.$extension" "$cover"; then
+			log "$logheader :: CONVERSION :: $filename :: Artwork Embedded"
+		else
+			log "$logheader :: CONVERSION :: ERROR :: Artwork embedding failed: $filename"
+			return 1
+		fi
+	fi
+
 	if [ "$extension" == "m4a" ]; then
 		log "$logheader :: CONVERSION :: $filename :: Tagging"
 		python3 /config/scripts/tag.py \
@@ -1173,7 +1210,7 @@ MP3Convert () {
 		songtitle="$(echo "$tags" | jq -r ".title")"
 		songalbum="$(echo "$tags" | jq -r ".album")"
 		songartist="$(echo "$tags" | jq -r ".artist")"
-		songartistalbum="$(echo "$tags" | jq -r ".album_artist")"
+		songartistalbum="$(echo "$tags" | jq -r '.album_artist // .ALBUMARTIST // .albumartist // empty')"
 		songoriginalbpm="$(echo "$tags" | jq -r ".TBPM")"
 		songbpm=${songoriginalbpm%.*}
 		songcopyright="$(echo "$tags" | jq -r ".copyright")"
@@ -1307,7 +1344,7 @@ MP3Convert () {
 	fi
 						
 	if [ "${FORMAT}" == "OPUS" ]; then
-		if opusenc --bitrate $BITRATE --music "$fname" "${fname%.mp3}.temp.$extension"; then
+		if opusenc --bitrate "$BITRATE" --vbr "$fname" "${fname%.mp3}.temp.$extension"; then
 			converterror=0
 		else
 			converterror=1
@@ -1325,12 +1362,15 @@ MP3Convert () {
 	fi
 	
 	if [ "$converterror" == "1" ]; then
-		log "$logheader :: CONVERSION :: ERROR :: Coversion Failed: $filename, performing cleanup..."
-		rm "${fname%.mp3}.temp.$extension"
-		continue
+		log "$logheader :: CONVERSION :: ERROR :: Conversion Failed: $filename, performing cleanup..."
+		rm -f "${fname%.mp3}.temp.$extension"
+		return 1
 	elif [ -f "${fname%.mp3}.temp.$extension" ]; then
 		mv "${fname%.mp3}.temp.$extension" "${fname%.mp3}.$extension"
 		log "$logheader :: CONVERSION :: $filename :: Converted!"
+	else
+		log "$logheader :: CONVERSION :: ERROR :: Expected output missing: $filename"
+		return 1
 	fi
 						
 	if [ "$extension" == "m4a" ]; then
@@ -1394,16 +1434,11 @@ Conversion () {
 				N=$POSTPROCESSTHREADS
 				(( ++count % N == 0)) && wait
 			done
-			check=1
-			let j=0
-			while [[ $check -le 1 ]]; do
-				if find /downloads-ama/temp -iname "*.flac" | read; then
-					check=1
-					sleep 1
-				else
-					check=2
-				fi
-			done
+			wait
+			if find /downloads-ama/temp -iname "*.flac" | read; then
+				log "$logheader :: CONVERSION :: ERROR :: One or more FLAC conversions failed"
+				return 1
+			fi
 		fi			
 		
 		if [ $FORCECONVERT == true ]; then
@@ -1416,16 +1451,11 @@ Conversion () {
 					done
 				fi
 			fi
-			check=1
-			let j=0
-			while [[ $check -le 1 ]]; do
-				if find /downloads-ama/temp -iname "*.mp3" | read; then
-					check=1
-					sleep 1
-				else
-					check=2
-				fi
-			done
+			wait
+			if find /downloads-ama/temp -iname "*.mp3" | read; then
+				log "$logheader :: CONVERSION :: ERROR :: One or more MP3 conversions failed"
+				return 1
+			fi
 		fi
 	fi
 }

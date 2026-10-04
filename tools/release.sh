@@ -43,7 +43,7 @@ if [ -f scripts/download.bash ]; then
 fi
 
 if [ -f README.md ]; then
-  sed -i "s/ama-unraid:[0-9.][0-9.]*/ama-unraid:$VERSION/g" README.md || true
+  sed -i -E "s#(ghcr\.io/crywolf203/ama-unraid:)[0-9]+\.[0-9]+\.[0-9]+#\1$VERSION#g" README.md || true
 fi
 
 echo
