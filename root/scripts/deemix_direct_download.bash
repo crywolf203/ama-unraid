@@ -143,6 +143,7 @@ explicit_suffix = " %explicit%" if os.environ.get("AMA_ALBUM_EXPLICIT", "").stri
 config["albumTracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["tracknameTemplate"] = "%discnumber%%tracknumber% - %title%" + explicit_suffix
 config["createSingleFolder"] = True
+config["createCDFolder"] = False
 
 # Maximize native Deemix lyric capture before AMA/LRCLIB fallback runs.
 config["syncedLyrics"] = True
@@ -179,6 +180,7 @@ print(f"DEEMIX_DIRECT :: jpegImageQuality={config.get('jpegImageQuality')}")
 print(f"DEEMIX_DIRECT :: embeddedArtworkPNG={config.get('embeddedArtworkPNG')}")
 print(f"DEEMIX_DIRECT :: tags.cover={config.get('tags', {}).get('cover')}")
 print(f"DEEMIX_DIRECT :: createSingleFolder={config['createSingleFolder']}")
+print(f"DEEMIX_DIRECT :: createCDFolder={config['createCDFolder']}")
 print(f"DEEMIX_DIRECT :: queueConcurrency={config['queueConcurrency']}")
 PY
 
