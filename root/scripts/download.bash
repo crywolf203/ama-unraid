@@ -1542,13 +1542,13 @@ DownloadQualityCheck () {
 
 ArtistAlbumList () {
 
-	albumcount="$(python3 /config/scripts/artist_discograpy.py "$artistid" | sort -u | wc -l)"
+    albumids=($(python3 /config/scripts/artist_discograpy.py "$artistid" | sort -u))
+    albumcount="${#albumids[@]}"
 	if [ -d /config/cache/artists/$artistid/albums ]; then
 		cachecount=$(ls /config/cache/artists/$artistid/albums/* | wc -l)
 	else
 		cachecount=0
 	fi
-	albumids=($(python3 /config/scripts/artist_discograpy.py "$artistid" | sort -u))
 	log "$logheader :: Searching for All Albums...."
 	log "$logheader :: $albumcount Albums found!"
 	
