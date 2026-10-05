@@ -431,10 +431,11 @@ Configuration () {
 DownloadAlbumWithClient () {
 	_album_url="$1"
 	_album_explicit="${2:-${albumexplicit:-}}"
+        _expected_tracks="${3:-${albumtrackcount:-0}}"
 	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
 		bash /config/scripts/deemix_api_download.bash "$_album_url"
 	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
-		AMA_ALBUM_EXPLICIT="${_album_explicit:-}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
+		AMA_ALBUM_EXPLICIT="${_album_explicit:-}" AMA_EXPECTED_TRACKS="${_expected_tracks:-0}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
 	else
                 echo "ERROR: Unsupported DOWNLOAD_CLIENT: ${DOWNLOAD_CLIENT:-<unset>}" >&2
                 return 1
@@ -699,6 +700,7 @@ ProcessArtist () {
 		albumdate="$(echo "$albumdata" | jq -r ".release_date")"
 		albumtype="$(echo "$albumdata" | jq -r ".record_type")"
 		albumexplicit="$(echo "$albumdata" | jq -r ".explicit_lyrics")"
+                albumtrackcount="$(echo "$albumdata" | jq -r ".nb_tracks // 0")"
 		if [ "$albumexplicit" == "true" ]; then
 			lyrictype="EXPLICIT"
 		else
@@ -800,7 +802,24 @@ ProcessArtist () {
 		if [ "" = "deemix_api" ]; then
 			bash /config/scripts/deemix_api_download.bash ""
 		else
-			DownloadAlbumWithClient "$deezeralbumurl" "$albumexplicit"
+                        download_status=0
+                        DownloadAlbumWithClient "$deezeralbumurl" "$albumexplicit" "$albumtrackcount" || download_status=$?
+
+                        if [ "$download_status" -ne 0 ]; then
+                                case "$download_status" in
+                                        20)
+                                                log "$logheader :: UNAVAILABLE :: No downloadable tracks found; will retry on a future scan"
+                                                ;;
+                                        21)
+                                                log "$logheader :: PARTIAL :: Incomplete album rejected; will retry on a future scan"
+                                                ;;
+                                        *)
+                                                log "$logheader :: ERROR :: Download client exited with code $download_status"
+                                                ;;
+                                esac
+                                rm -rf /downloads-ama/temp/*
+                                continue
+                        fi
 		fi
 		rm -rf /tmp/deemix-imgs/*
 		if find /downloads-ama/temp -iregex ".*/.*\.\(flac\|mp3\)" | read; then
@@ -1542,13 +1561,13 @@ DownloadQualityCheck () {
 
 ArtistAlbumList () {
 
-	albumcount="$(python3 /config/scripts/artist_discograpy.py "$artistid" | sort -u | wc -l)"
+    albumids=($(python3 /config/scripts/artist_discograpy.py "$artistid" | sort -u))
+    albumcount="${#albumids[@]}"
 	if [ -d /config/cache/artists/$artistid/albums ]; then
 		cachecount=$(ls /config/cache/artists/$artistid/albums/* | wc -l)
 	else
 		cachecount=0
 	fi
-	albumids=($(python3 /config/scripts/artist_discograpy.py "$artistid" | sort -u))
 	log "$logheader :: Searching for All Albums...."
 	log "$logheader :: $albumcount Albums found!"
 	
@@ -1566,7 +1585,7 @@ ArtistAlbumList () {
 				chown -R abc:abc /config/cache/artists/$artistid
 			fi
 			if [ ! -f /config/cache/artists/$artistid/albums/${albumid}.json ]; then
-				if curl -sL --fail "https://api.deezer.com/album/${albumid}" -o "/config/temp/${albumid}.json"; then
+				if curl -sSL --fail --connect-timeout 10 --max-time 30 --retry 2 --retry-delay 2 --retry-connrefused "https://api.deezer.com/album/${albumid}" -o "/config/temp/${albumid}.json"; then
 					log "$logheader :: $currentprocess of $albumcount :: Downloading Album info..."
 					mv /config/temp/${albumid}.json /config/cache/artists/$artistid/albums/${albumid}.json
 					chmod $FILEPERM /config/cache/artists/$artistid/albums/${albumid}.json

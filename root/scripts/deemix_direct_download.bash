@@ -218,6 +218,27 @@ if grep -qiE "Traceback|MutagenError|FileNotFoundError|\[Errno [0-9]+\]" "$LOG_F
   exit 1
 fi
 
+EXPECTED_TRACKS="${AMA_EXPECTED_TRACKS:-0}"
+DOWNLOADED_AUDIO_COUNT="$(find "$TEMP_DIR" -mindepth 1 -maxdepth 6 -type f \( -iname "*.flac" -o -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.opus" \) 2>/dev/null | wc -l)"
+
+if [[ "$EXPECTED_TRACKS" =~ ^[0-9]+$ ]] && [ "$EXPECTED_TRACKS" -gt 0 ]; then
+  log "DEEMIX_DIRECT :: Completeness check: downloaded=$DOWNLOADED_AUDIO_COUNT expected=$EXPECTED_TRACKS"
+
+  if [ "$DOWNLOADED_AUDIO_COUNT" -eq 0 ]; then
+    log "DEEMIX_DIRECT :: UNAVAILABLE :: downloaded 0 of $EXPECTED_TRACKS tracks; release will be retried later"
+    find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+    exit 20
+  fi
+
+  if [ "$DOWNLOADED_AUDIO_COUNT" -lt "$EXPECTED_TRACKS" ]; then
+    log "DEEMIX_DIRECT :: PARTIAL :: downloaded $DOWNLOADED_AUDIO_COUNT of $EXPECTED_TRACKS tracks; incomplete release will not be finalized"
+    find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+    exit 21
+  fi
+else
+  log "DEEMIX_DIRECT :: WARNING: Expected track count unavailable; completeness check skipped"
+fi
+
 FIRST_MEDIA_FILE="$(find "$TEMP_DIR" -mindepth 1 -maxdepth 6 -type f \( \
   -iname "*.flac" -o \
   -iname "*.mp3" -o \
