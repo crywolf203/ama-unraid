@@ -12,6 +12,7 @@ Deemix Direct · Synced Lyrics · ReplayGain · Plex/Roon Metadata Cleanup · Hi
 <p align="center">
 <a href="https://unraid.net/"><img alt="Unraid" src="https://img.shields.io/badge/Unraid-Community%20Applications-orange?style=for-the-badge&logo=unraid&logoColor=white"></a>
 <a href="https://github.com/crywolf203/ama-unraid/pkgs/container/ama-unraid"><img alt="GHCR" src="https://img.shields.io/badge/GHCR-ama--unraid-blue?style=for-the-badge&logo=github&logoColor=white"></a>
+<a href="https://github.com/crywolf203/ama-unraid/pkgs/container/ama-unraid"><img alt="GHCR pulls" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fghcr-badge.elias.eu.org%2Fapi%2Fcrywolf203%2Fama-unraid%2Fama-unraid&amp;query=downloadCount&amp;label=GHCR+pulls&amp;style=for-the-badge&amp;logo=github"></a>
 <a href="https://github.com/crywolf203/ama-unraid/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge"></a>
 <a href="https://buymeacoffee.com/crywolf203"><img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-yellow?style=for-the-badge&logo=buymeacoffee&logoColor=black"></a>
 </p>
