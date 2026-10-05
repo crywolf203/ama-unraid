@@ -1585,7 +1585,7 @@ ArtistAlbumList () {
 				chown -R abc:abc /config/cache/artists/$artistid
 			fi
 			if [ ! -f /config/cache/artists/$artistid/albums/${albumid}.json ]; then
-				if curl -sL --fail "https://api.deezer.com/album/${albumid}" -o "/config/temp/${albumid}.json"; then
+				if curl -sSL --fail --connect-timeout 10 --max-time 30 --retry 2 --retry-delay 2 --retry-connrefused "https://api.deezer.com/album/${albumid}" -o "/config/temp/${albumid}.json"; then
 					log "$logheader :: $currentprocess of $albumcount :: Downloading Album info..."
 					mv /config/temp/${albumid}.json /config/cache/artists/$artistid/albums/${albumid}.json
 					chmod $FILEPERM /config/cache/artists/$artistid/albums/${albumid}.json
