@@ -28,8 +28,9 @@ def split_artists(value):
     value = value.replace("\\\\", ";").replace("\\", ";")
     value = re.sub(r"\s+(?:feat\.|ft\.|with)\s+", ";", value, flags=re.I)
 
-    # Do not split names like "Ty Dolla $ign" on "$"; only common artist separators.
-    for sep in [";", "/", ","]:
+    # Be conservative with separators. Commas and ampersands can be part of
+    # legitimate artist names such as "Earth, Wind & Fire".
+    for sep in [";", "/"]:
         value = value.replace(sep, ";")
 
     out = []
@@ -38,6 +39,34 @@ def split_artists(value):
         if part and norm(part) not in [norm(x) for x in out]:
             out.append(part)
     return out
+
+def remove_main_artist_component(value, main_artist):
+    value = clean(value)
+    main_artist = clean(main_artist)
+
+    if not value or not main_artist:
+        return value
+
+    if norm(value) == norm(main_artist):
+        return ""
+
+    prefix = re.match(
+        rf"^{re.escape(main_artist)}\s*&\s*(.+)$",
+        value,
+        flags=re.I
+    )
+    if prefix:
+        return clean(prefix.group(1))
+
+    suffix = re.match(
+        rf"^(.+?)\s*&\s*{re.escape(main_artist)}$",
+        value,
+        flags=re.I
+    )
+    if suffix:
+        return clean(suffix.group(1))
+
+    return value
 
 def get_values(audio, names):
     wanted = {x.lower() for x in names}
@@ -69,21 +98,30 @@ def get_main_artist(audio):
 
     return ""
 
-def get_track_artists(audio):
+def get_track_artists(audio, main_artist):
     artist_values = get_values(audio, ["ARTIST", "artist", "ARTISTS", "artists"])
-    return split_artists(";".join(artist_values))
+
+    out = []
+    for value in artist_values:
+        for artist in split_artists(value):
+            artist = remove_main_artist_component(artist, main_artist)
+            if artist and norm(artist) not in [norm(x) for x in out]:
+                out.append(artist)
+
+    return out
 
 def title_contains_artist(title, artist):
     return norm(artist) in norm(title)
 
-def merge_featured_into_title(title, extra_artists):
+def merge_featured_into_title(title, extra_artists, main_artist):
     title = clean(title)
     existing = []
 
     def remove_existing_feat(match):
         inside = match.group(1)
         for artist in split_artists(inside):
-            if norm(artist) not in [norm(x) for x in existing]:
+            artist = remove_main_artist_component(artist, main_artist)
+            if artist and norm(artist) not in [norm(x) for x in existing]:
                 existing.append(artist)
         return ""
 
@@ -118,7 +156,7 @@ def process(path):
         print(f"ARTIST_CLEANUP :: SKIP no main artist :: {path.name}")
         return False
 
-    track_artists = get_track_artists(audio)
+    track_artists = get_track_artists(audio, main_artist)
 
     extra_artists = []
     for artist in track_artists:
@@ -129,7 +167,7 @@ def process(path):
         if norm(artist) not in [norm(x) for x in extra_artists]:
             extra_artists.append(artist)
 
-    fixed_title = merge_featured_into_title(title, extra_artists) if extra_artists else title
+    fixed_title = merge_featured_into_title(title, extra_artists, main_artist)
 
     for key in list(audio.keys()):
         if key.lower() in ARTIST_TAGS or key.lower() in REMOVE_TAGS:
