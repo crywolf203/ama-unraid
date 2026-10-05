@@ -118,7 +118,7 @@ ghcr.io/crywolf203/ama-unraid:latest
 Versioned image example:
 
 ```bash
-ghcr.io/crywolf203/ama-unraid:2.6.0
+ghcr.io/crywolf203/ama-unraid:2.6.1
 ```
 
 Unraid template repository:
