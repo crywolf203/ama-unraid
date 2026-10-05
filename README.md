@@ -30,6 +30,7 @@ Deemix Direct · Synced Lyrics · ReplayGain · Plex/Roon Metadata Cleanup · Hi
 
 - [What is AMA-Unraid?](#what-is-ama-unraid)
 - [Main Features](#main-features)
+  - [2.6.1 reliability improvements](#261-reliability-improvements)
 - [Docker Image and Unraid Template Updates](#docker-image-and-unraid-template-updates)
 - [Required and Optional Paths](#required-and-optional-paths)
   - [Recommended Direct-mode paths](#recommended-direct-mode-paths)
@@ -63,6 +64,7 @@ Deemix Direct · Synced Lyrics · ReplayGain · Plex/Roon Metadata Cleanup · Hi
   - [Container starts but AMA does not run](#container-starts-but-ama-does-not-run)
   - [Deemix Direct cannot log in](#deemix-direct-cannot-log-in)
   - [FLAC was requested but MP3, M4A, or OPUS was downloaded](#flac-was-requested-but-mp3-m4a-or-opus-was-downloaded)
+  - [Release is logged as UNAVAILABLE or PARTIAL](#release-is-logged-as-unavailable-or-partial)
   - [Lyrics are missing](#lyrics-are-missing)
   - [Permission issues](#permission-issues)
 - [Development Notes](#development-notes)
@@ -105,6 +107,14 @@ Use this container only with accounts, content, and services you are authorized 
 - Optional Plex library notification.
 - Optional Lidarr artist list import.
 - Legacy Deemix API mode remains available for advanced users.
+
+### 2.6.1 reliability improvements
+
+- **Unavailable-release protection:** when Deezer reports expected tracks but Deemix downloads zero audio files, AMA logs `UNAVAILABLE`, clears the temporary download, and leaves the release eligible for retry.
+- **Partial-release protection:** when Deemix downloads some but fewer than the expected tracks, AMA logs `PARTIAL`, clears the incomplete download, and does not finalize it into the library.
+- **Featured-artist cleanup:** redundant main-artist names are removed from `feat.` title metadata while compound names such as `Earth, Wind & Fire` are preserved.
+- **Bounded Deezer metadata requests:** album metadata requests use connection and overall timeouts with retries to prevent indefinite stalls.
+- **Discography lookup optimization:** artist discography discovery runs once per artist, avoiding the duplicate lookup.
 
 ---
 
@@ -312,7 +322,7 @@ The table below mirrors the Unraid template order and keeps the app repo and tem
 | `POSTPROCESSTHREADS` | `8` | No | Threads used for conversion and post-processing |
 | `REQUIRE_QUALITY` | `false` | No | Stricter quality check after download |
 | `DEEMIX_FALLBACK_BITRATE` | `true` | No | Allow Deemix Direct to fall back when requested quality is unavailable |
-| `DEEMIX_QUEUE_CONCURRENCY` | `1` | No | Internal Deemix Direct queue/download concurrency |
+| `DEEMIX_QUEUE_CONCURRENCY` | `1` | No | Internal Deemix Direct queue/download concurrency. Default and starting value: `1`; `2` is a conservative validated value for Direct mode |
 
 ### Artwork
 
@@ -409,11 +419,12 @@ The safe direct-temp flow works like this:
 
 1. AMA cleans `/downloads-ama/temp` before each album.
 2. Deemix downloads the album directly into `/downloads-ama/temp`.
-3. AMA finds the downloaded album folder.
-4. AMA adds the album ID to the temporary album folder when needed.
-5. AMA runs `lrc_fallback.py` with `/downloads-ama/temp` and the album ID.
-6. AMA flattens audio files, `.lrc` files, and `cover.jpg` into `/downloads-ama/temp`.
-7. AMA continues import, tag cleanup, ReplayGain, permissions, and Plex notification.
+3. AMA compares the downloaded audio-file count with Deezer's expected track count before post-processing. If expected tracks are reported but zero audio files were downloaded, it logs `UNAVAILABLE`; if some but fewer than the expected tracks were downloaded, it logs `PARTIAL`. In either case, AMA clears the temporary download, skips finalization, and leaves the release eligible for a later retry.
+4. For complete releases, AMA finds the downloaded album folder.
+5. AMA adds the album ID to the temporary album folder when needed.
+6. AMA runs `lrc_fallback.py` with `/downloads-ama/temp` and the album ID.
+7. AMA flattens audio files, `.lrc` files, and `cover.jpg` into `/downloads-ama/temp`.
+8. AMA continues import, tag cleanup, ReplayGain, permissions, and Plex notification.
 
 Deemix Direct writes its runtime config under:
 
@@ -484,6 +495,8 @@ ENABLE_ARTIST_TAG_CLEANUP=true
 ```
 
 It keeps featured artists in the track title while keeping `ARTIST` and `ALBUMARTIST` clean.
+
+In 2.6.1, cleanup also removes the main album artist from redundant `feat.` title metadata while retaining other featured artists. Compound artist names such as `Earth, Wind & Fire` are preserved.
 
 Supported cleanup formats:
 
@@ -749,6 +762,15 @@ DEEMIX_DIRECT :: fallbackBitrate=True
 DEEMIX_DIRECT :: requested=FLAC actual_summary flac=0 mp3=1 m4a=0 opus=0
 ```
 
+### Release is logged as UNAVAILABLE or PARTIAL
+
+AMA 2.6.1 checks album completeness before post-processing:
+
+- `UNAVAILABLE`: Deezer reported one or more expected tracks, but Deemix downloaded zero audio files.
+- `PARTIAL`: Deemix downloaded at least one audio file, but fewer than Deezer's expected track count.
+
+Both outcomes clear the temporary download without importing the release or marking it successfully downloaded. Check the Deemix Direct log for the downloaded and expected track counts and any download errors. Confirm your Deemix login and the release's availability in Deezer, then retry on a later scan. Incomplete releases remain eligible for retry.
+
 ### Lyrics are missing
 
 Check the direct log:
@@ -837,3 +859,4 @@ https://buymeacoffee.com/crywolf203
 Use this container only with accounts, content, and services you are authorized to access.
 
 This repository does not claim ownership of upstream projects. It packages, documents, and extends the workflow for Unraid users.
+
