@@ -2,7 +2,7 @@ FROM node:24-alpine AS deemix-builder
 
 ARG DEEMIX_REPO=https://github.com/crywolf203/deemix.git
 # renovate: datasource=git-refs packageName=https://github.com/crywolf203/deemix currentValue=fix-docker-temp-artwork-permissions
-ARG DEEMIX_REF=4d5159657abac89074e96bb48c7a15005502745b
+ARG DEEMIX_REF=72663d4a78436b01aa3b26d8df822cf43f105c59
 
 RUN apk add --no-cache \
     git \
@@ -38,6 +38,9 @@ ENV TITLE="Automated Music Archiver (AMA)"
 ENV TITLESHORT="AMA"
 ENV VERSION="2.6.1"
 ENV XDG_CONFIG_HOME="/config/deemix/xdg"
+ENV RETAIN_PARTIAL_ALBUMS="false"
+ENV RETRY_MISSING_TRACKS="true"
+ENV PARTIAL_RETRY_HOURS="24"
 RUN \
 	echo "************ install dependencies ************" && \
 	echo "************ install and upgrade packages ************" && \

@@ -164,6 +164,12 @@ config["concurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "
 config["maxConcurrentDownloads"] = int(os.environ.get("DEEMIX_QUEUE_CONCURRENCY", "1"))
 
 config["fallbackBitrate"] = True
+# Retain the original album slot in tags for reliable missing-track accounting.
+config["tags"]["trackNumber"] = True
+config["tags"]["discNumber"] = True
+if os.environ.get("AMA_RETRY_TRACK_IDS_JSON"):
+    config["fallbackSearch"] = True
+    config["fallbackISRC"] = True
 config_path.write_text(json.dumps(config, indent=2))
 
 print(f"DEEMIX_DIRECT :: Wrote Deemix config: {config_path}")
@@ -203,9 +209,23 @@ esac
 
 log "DEEMIX_DIRECT :: Bitrate: $CLI_BITRATE"
 
+CLI_EXTRA_ARGS=()
+if [ -n "${AMA_RETRY_TRACK_IDS_JSON:-}" ]; then
+  RETRY_IDS="$(python3 - <<'PYIDS'
+import json, os
+ids = json.loads(os.environ["AMA_RETRY_TRACK_IDS_JSON"])
+assert isinstance(ids, list) and ids
+ids = [str(value) for value in ids]
+assert all(value.isdigit() and int(value) > 0 for value in ids)
+print(",".join(ids))
+PYIDS
+)"
+  CLI_EXTRA_ARGS=(--track-ids "$RETRY_IDS")
+  log "DEEMIX_DIRECT :: Retrying missing album track IDs: $RETRY_IDS"
+fi
 set +e
-deemix -b "$CLI_BITRATE" -p "$TEMP_DIR" "$ALBUM_URL"
-DEEMIX_EXIT="$?"
+deemix "${CLI_EXTRA_ARGS[@]}" -b "$CLI_BITRATE" -p "$TEMP_DIR" "$ALBUM_URL"
+DEEMIX_EXIT=$?
 set -e
 
 if [ "$DEEMIX_EXIT" -ne 0 ]; then
@@ -231,9 +251,13 @@ if [[ "$EXPECTED_TRACKS" =~ ^[0-9]+$ ]] && [ "$EXPECTED_TRACKS" -gt 0 ]; then
   fi
 
   if [ "$DOWNLOADED_AUDIO_COUNT" -lt "$EXPECTED_TRACKS" ]; then
-    log "DEEMIX_DIRECT :: PARTIAL :: downloaded $DOWNLOADED_AUDIO_COUNT of $EXPECTED_TRACKS tracks; incomplete release will not be finalized"
-    find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
-    exit 21
+    if [ "${RETAIN_PARTIAL_ALBUMS:-false}" = true ]; then
+      log "DEEMIX_DIRECT :: PARTIAL :: retaining $DOWNLOADED_AUDIO_COUNT available tracks; missing tracks will be recorded after finalization"
+    else
+      log "DEEMIX_DIRECT :: PARTIAL :: completeness policy rejected $DOWNLOADED_AUDIO_COUNT of $EXPECTED_TRACKS tracks"
+      find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+      exit 21
+    fi
   fi
 else
   log "DEEMIX_DIRECT :: WARNING: Expected track count unavailable; completeness check skipped"

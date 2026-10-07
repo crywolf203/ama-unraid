@@ -435,7 +435,7 @@ DownloadAlbumWithClient () {
 	if [ "${DOWNLOAD_CLIENT:-python}" = "deemix_api" ]; then
 		bash /config/scripts/deemix_api_download.bash "$_album_url"
 	elif [ "${DOWNLOAD_CLIENT:-python}" = "deemix_direct" ]; then
-		AMA_ALBUM_EXPLICIT="${_album_explicit:-}" AMA_EXPECTED_TRACKS="${_expected_tracks:-0}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
+		AMA_ALBUM_EXPLICIT="${_album_explicit:-}" AMA_EXPECTED_TRACKS="${_expected_tracks:-0}" AMA_RETRY_TRACK_IDS_JSON="${AMA_RETRY_TRACK_IDS_JSON:-}" bash /config/scripts/deemix_direct_download.bash "$_album_url"
 	else
                 echo "ERROR: Unsupported DOWNLOAD_CLIENT: ${DOWNLOAD_CLIENT:-<unset>}" >&2
                 return 1
@@ -566,6 +566,31 @@ ArtistInfo () {
 	fi
 }
 
+RetryPartialAlbums () {
+    [ "${RETAIN_PARTIAL_ALBUMS:-false}" = true ] || return 0
+    [ "${RETRY_MISSING_TRACKS:-true}" = true ] || return 0
+    [ "$DOWNLOAD_CLIENT" = deemix_direct ] || return 0
+    [ -f /config/scripts/partial_albums.py ] || return 0
+    while IFS= read -r retry_album; do
+        retry_data="$(python3 /config/scripts/partial_albums.py prepare "$retry_album")" || continue
+        [ -n "$retry_data" ] || continue
+        (
+            albumids=("$retry_album")
+            albumcount=1
+            albumlistdata="$(printf '%s' "$retry_data" | jq '[.album]')"
+            artistid="$(printf '%s' "$retry_data" | jq -r '.artist_id')"
+            artistnumber=1
+            logheaderstart="PARTIAL RETRY :: $retry_album"
+            logheader="$logheaderstart"
+            export AMA_PARTIAL_RETRY=true
+            export AMA_RETRY_TRACK_IDS_JSON="$(printf '%s' "$retry_data" | jq -c '.ids')"
+            export AMA_PARTIAL_TARGET="$(printf '%s' "$retry_data" | jq -r '.target')"
+            ArtistInfo "$artistid"
+            ProcessArtist
+        )
+    done < <(python3 /config/scripts/partial_albums.py due)
+}
+
 ProcessArtistList () {
 	for id in ${!list[@]}; do
 		artistnumber=$(( $id + 1 ))
@@ -616,7 +641,13 @@ ProcessArtist () {
 		albumartist="$(echo "$albumdata" | jq -r ".artist.name")"
 		sanatizedalbumartist="$(echo "$albumartist" | sed -e "s%[^[:alpha:][:digit:]._()' -]% %g" -e "s/  */ /g")"
 		logheader="$logheader :: $albumprocess of $albumcount :: PROCESSING :: $albumartist"
-		if [ -f /config/logs/downloads/$albumid ]; then
+        partial_record="/config/partial-albums/$albumid.json"
+        if [ -f "$partial_record" ] && [ "${AMA_PARTIAL_RETRY:-false}" != true ]; then
+            log "$logheader :: Partial album queued for scheduled missing-track retry"
+            logheader="$logheaderstart"
+            continue
+        fi
+		if [ -f /config/logs/downloads/$albumid ] && [ ! -f "$partial_record" ]; then
 			log "$logheader :: Album ($albumid) Already Downloaded..."
 			logheader="$logheaderstart"
 			continue
@@ -643,7 +674,7 @@ ProcessArtist () {
 		else
 			artistfolder="/downloads-ama/$sanatizedalbumartist ($albumartistid)"
 		fi
-		if [ -d "$artistfolder" ]; then
+		if [ -d "$artistfolder" ] && [ ! -f "$partial_record" ]; then
 			if find "$artistfolder" -iname "* ($albumid)" | read; then
 				log "$logheader :: Album ($albumid) Already Downloaded..."
 				if [ ! -d /config/logs/downloads ]; then
@@ -724,7 +755,7 @@ ProcessArtist () {
 				continue
 			fi
 		fi
-		if [ -d "$artistfolder" ]; then
+		if [ -d "$artistfolder" ] && [ ! -f "$partial_record" ]; then
 			if [ "${albumtype^^}" != "SINGLE" ]; then
 				if [ "$albumexplicit" == "false" ]; then
 					if find "$artistfolder" -iname "$sanatizedalbumartist - ${albumtype^^} - * - $sanatizedalbumtitle (EXPLICIT) *" | read; then
@@ -783,6 +814,10 @@ ProcessArtist () {
 				fi
 			fi
 		fi
+        if [ "${AMA_PARTIAL_RETRY:-false}" = true ]; then
+            artistfolder="$(dirname "$AMA_PARTIAL_TARGET")"
+            albumfolder="$(basename "$AMA_PARTIAL_TARGET")"
+        fi
 		logheader="$logheader :: DOWNLOAD"
 		log "$logheader :: Sending \"$deezeralbumurl\" to download client..."
 
@@ -811,7 +846,7 @@ ProcessArtist () {
                                                 log "$logheader :: UNAVAILABLE :: No downloadable tracks found; will retry on a future scan"
                                                 ;;
                                         21)
-                                                log "$logheader :: PARTIAL :: Incomplete album rejected; will retry on a future scan"
+                                                log "$logheader :: PARTIAL :: Incomplete album rejected by completeness policy; will retry on a future scan"
                                                 ;;
                                         *)
                                                 log "$logheader :: ERROR :: Download client exited with code $download_status"
@@ -904,7 +939,7 @@ ProcessArtist () {
 		# remove plex ignore file temporarily
 		rm -f /downloads-ama/temp/.plexignore
 		
-		mv /downloads-ama/temp/* "$artistfolder/$albumfolder"/
+		mv -n /downloads-ama/temp/* "$artistfolder/$albumfolder"/
 		chmod $FILEPERM "$artistfolder/$albumfolder"/*
 		chown -R abc:abc "$artistfolder/$albumfolder"
 		if [ -f /config/cache/artists/$albumartistid/folder.jpg ]; then
@@ -922,12 +957,14 @@ ProcessArtist () {
 		if [ -d /downloads-ama/temp ]; then
 			rm -rf /downloads-ama/temp
 		fi
-		if [ ! -d /config/logs/downloads ]; then
-			mkdir -p /config/logs/downloads
-		fi
-		if [ ! -f /config/logs/downloads/$albumid ]; then
-			touch /config/logs/downloads/$albumid
-		fi
+        final_audio_count="$(find "$artistfolder/$albumfolder" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.opus' -o -iname '*.aac' -o -iname '*.ogg' \) | wc -l)"
+        if [ "${RETAIN_PARTIAL_ALBUMS:-false}" = true ] && { [ -f "$partial_record" ] || [ "$final_audio_count" -lt "$albumtrackcount" ]; }; then
+            printf '%s' "$albumdata" | python3 /config/scripts/partial_albums.py record \
+                "$albumid" "$artistfolder/$albumfolder" "$albumtrackcount" "$artistid"
+        else
+            mkdir -p /config/logs/downloads
+            touch "/config/logs/downloads/$albumid"
+        fi
 		logheader="$logheaderstart"
 	done
 }
@@ -1546,13 +1583,21 @@ DownloadQualityCheck () {
 			if find /downloads-ama/temp -iname "*.mp3" | read; then
 				log "$logheader :: DOWNLOAD :: Unwanted files found!"
 				log "$logheader :: DOWNLOAD :: Performing cleanup..."
-				rm /downloads-ama/temp/*
+				if [ "${RETAIN_PARTIAL_ALBUMS:-false}" = true ]; then
+                    find /downloads-ama/temp -type f -iname '*.mp3' -delete
+                else
+                    rm /downloads-ama/temp/*
+                fi
 			fi
 		else
 			if find /downloads-ama/temp -iname "*.flac" | read; then
 				log "$logheader :: DOWNLOAD :: Unwanted files found!"
 				log "$logheader :: DOWNLOAD :: Performing cleanup..."
-				rm /downloads-ama/temp/*
+				if [ "${RETAIN_PARTIAL_ALBUMS:-false}" = true ]; then
+                    find /downloads-ama/temp -type f -iname '*.flac' -delete
+                else
+                    rm /downloads-ama/temp/*
+                fi
 			fi
 		fi
 	fi
@@ -1638,7 +1683,12 @@ log () {
 
 Main () {
 	Configuration
+    export RETAIN_PARTIAL_ALBUMS="${RETAIN_PARTIAL_ALBUMS:-false}"
+    export RETRY_MISSING_TRACKS="${RETRY_MISSING_TRACKS:-true}"
+    export PARTIAL_RETRY_HOURS="${PARTIAL_RETRY_HOURS:-${AMA_PARTIAL_RETRY_HOURS:-24}}"
+    log "Partial albums: retain=$RETAIN_PARTIAL_ALBUMS retry=$RETRY_MISSING_TRACKS interval=${PARTIAL_RETRY_HOURS}h"
 	log "######################### SCRIPT START"
+	RetryPartialAlbums
 	if [ "$LIDARR_LIST_IMPORT" == "true" ] || [ "$COMPLETE_MY_ARTISTS" == "true" ] || [ "$RELATED_ARTIST" == "true" ]; then
 		if [ "$LIDARR_LIST_IMPORT" == "true" ]; then
 			LidarrListImport
