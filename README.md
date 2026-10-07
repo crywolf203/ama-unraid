@@ -111,7 +111,7 @@ Use this container only with accounts, content, and services you are authorized 
 ### 2.6.1 reliability improvements
 
 - **Unavailable-release protection:** when Deezer reports expected tracks but Deemix downloads zero audio files, AMA logs `UNAVAILABLE`, clears the temporary download, and leaves the release eligible for retry.
-- **Partial-release protection:** when Deemix downloads some but fewer than the expected tracks, AMA logs `PARTIAL`, clears the incomplete download, and does not finalize it into the library.
+- **Optional partial albums:** with `RETAIN_PARTIAL_ALBUMS=true`, Deemix Direct retains and imports available tracks. Missing tracks are recorded under `/config/partial-albums` and retried separately while existing music stays in the library.
 - **Featured-artist cleanup:** redundant main-artist names are removed from `feat.` title metadata while compound names such as `Earth, Wind & Fire` are preserved.
 - **Bounded Deezer metadata requests:** album metadata requests use connection and overall timeouts with retries to prevent indefinite stalls.
 - **Discography lookup optimization:** artist discography discovery runs once per artist, avoiding the duplicate lookup.
@@ -320,6 +320,9 @@ The table below mirrors the Unraid template order and keeps the app repo and tem
 | `BITRATE` | `320` | No | Lossy bitrate for MP3, AAC, or OPUS conversion paths |
 | `FORCECONVERT` | `false` | No | Force conversion to requested format when supported |
 | `POSTPROCESSTHREADS` | `8` | No | Threads used for conversion and post-processing |
+| `RETAIN_PARTIAL_ALBUMS` | `false` | No | Import usable tracks from incomplete albums; false preserves complete-album-only imports |
+| `RETRY_MISSING_TRACKS` | `true` | No | Retry missing tracks when retention is enabled; false pauses retries without deleting records or music |
+| `PARTIAL_RETRY_HOURS` | `24` | No | Hours between missing-track retries; positive integer, minimum 1 |
 | `REQUIRE_QUALITY` | `false` | No | Stricter quality check after download |
 | `DEEMIX_FALLBACK_BITRATE` | `true` | No | Allow Deemix Direct to fall back when requested quality is unavailable |
 | `DEEMIX_QUEUE_CONCURRENCY` | `1` | No | Internal Deemix Direct queue/download concurrency. Default and starting value: `1`; `2` is a conservative validated value for Direct mode |
@@ -419,8 +422,8 @@ The safe direct-temp flow works like this:
 
 1. AMA cleans `/downloads-ama/temp` before each album.
 2. Deemix downloads the album directly into `/downloads-ama/temp`.
-3. AMA compares the downloaded audio-file count with Deezer's expected track count before post-processing. If expected tracks are reported but zero audio files were downloaded, it logs `UNAVAILABLE`; if some but fewer than the expected tracks were downloaded, it logs `PARTIAL`. In either case, AMA clears the temporary download, skips finalization, and leaves the release eligible for a later retry.
-4. For complete releases, AMA finds the downloaded album folder.
+3. AMA compares downloaded audio files with the expected track count. Zero files returns `UNAVAILABLE` (20). A partial download is rejected with status 21 by default. When `RETAIN_PARTIAL_ALBUMS=true`, its available files continue through normal processing.
+4. AMA finds the downloaded album folder, including partial releases.
 5. AMA adds the album ID to the temporary album folder when needed.
 6. AMA runs `lrc_fallback.py` with `/downloads-ama/temp` and the album ID.
 7. AMA flattens audio files, `.lrc` files, and `cover.jpg` into `/downloads-ama/temp`.
@@ -769,7 +772,21 @@ AMA 2.6.1 checks album completeness before post-processing:
 - `UNAVAILABLE`: Deezer reported one or more expected tracks, but Deemix downloaded zero audio files.
 - `PARTIAL`: Deemix downloaded at least one audio file, but fewer than Deezer's expected track count.
 
-Both outcomes clear the temporary download without importing the release or marking it successfully downloaded. Check the Deemix Direct log for the downloaded and expected track counts and any download errors. Confirm your Deemix login and the release's availability in Deezer, then retry on a later scan. Incomplete releases remain eligible for retry.
+`UNAVAILABLE` retains the existing zero-track retry behavior. `PARTIAL` follows `RETAIN_PARTIAL_ALBUMS`: the default `false` rejects the new incomplete import with exit 21; `true` imports the usable tracks and records the original album, destination, and missing track IDs in `/config/partial-albums/<album-id>.json`. It does not create the normal complete-album marker.
+
+When both `RETAIN_PARTIAL_ALBUMS=true` and `RETRY_MISSING_TRACKS=true`, due partial albums are retried before each standard Deezer scan independently of the artist list. The default interval is 24 hours (`PARTIAL_RETRY_HOURS`, minimum 1 hour). The CLI requests only the missing IDs within the original album, preserving its numbering and metadata, with ISRC and metadata search fallback enabled. Recovered tracks pass through normal AMA processing and merge without overwriting existing files. Once all original album slots are present, AMA clears the partial record and marks the album complete.
+
+Turning either flag off preserves all existing partial-album records and imported files; re-enabling both resumes due retries. Retention with retries off still records missing tracks for later use. The previous `AMA_PARTIAL_RETRY_HOURS` name is accepted as a fallback when the new name is absent.
+
+For partial retention and automatic retries:
+
+```bash
+RETAIN_PARTIAL_ALBUMS=true
+RETRY_MISSING_TRACKS=true
+PARTIAL_RETRY_HOURS=24
+```
+
+Metadata failures defer retries without deleting music. Matching uses valid audio tags (title, disc and track number), rather than only a file count. The current implementation applies to the default Deemix Direct / Deezer workflow; the optional MusicBrainz workflow is unchanged. Existing `REQUIRE_QUALITY` preferences still apply to individual downloaded tracks.
 
 ### Lyrics are missing
 
